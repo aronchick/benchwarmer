@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Benchwarmer benchmark specification",
+  "type": "object",
+  "required": ["title", "metric", "series"],
+  "properties": {
+    "title": { "type": "string", "minLength": 1 },
+    "metric": { "type": "string", "minLength": 1 },
+    "unit": { "type": "string" },
+    "higherIsBetter": { "type": "boolean", "default": true },
+    "source": { "type": "string" },
+    "caveat": { "type": "string" },
+    "interpretation": { "type": "string" },
+    "series": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["label", "value"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "value": { "type": "number" },
+          "note": { "type": "string" },
+          "url": { "type": "string", "format": "uri" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

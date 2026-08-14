@@ -1,0 +1,14 @@
+{
+  "title": "Illustrative layout benchmark",
+  "metric": "Score",
+  "unit": "points",
+  "higherIsBetter": true,
+  "source": "Replace with the primary benchmark source",
+  "caveat": "Illustrative values only. Do not use for model-selection claims.",
+  "interpretation": "A decision-ready chart states the metric, source, caveat, and what changed the decision.",
+  "series": [
+    { "label": "Model A", "value": 84.2 },
+    { "label": "Model B", "value": 79.6 },
+    { "label": "Model C", "value": 74.1 }
+  ]
+}

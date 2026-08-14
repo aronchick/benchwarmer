@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Turn benchmark tables into auditable, decision-first charts." />
+    <title>Benchwarmer — benchmark chart rehabilitation</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">BENCHWARMER<span>™</span></a>
+      <p>It does not run benchmarks. It rehabilitates them.</p>
+      <a class="repo" href="https://github.com/aronchick/benchwarmer">View source ↗</a>
+    </header>
+    <main>
+      <section class="intro">
+        <div><p class="eyebrow">DECISION-FIRST BENCHMARK LAYOUTS</p><h1>Make the chart carry its own receipts.</h1></div>
+        <p>Paste a table, upload CSV or JSON, or give an agent the screenshot prompt. Benchwarmer makes an editable, source-aware chart—not a screenshot-shaped claim.</p>
+      </section>
+      <section class="workspace">
+        <aside class="inputs">
+          <label class="drop" id="dropzone"><input id="file" type="file" accept=".csv,.json,text/csv,application/json" /><strong>Drop CSV or JSON</strong><span>or choose a file</span></label>
+          <label>Paste a CSV, JSON, or Markdown table<textarea id="source" rows="12" spellcheck="false"></textarea></label>
+          <button id="parse">Make it legible</button>
+          <details><summary>Screenshot workflow (agent-ready)</summary><p>Attach a screenshot to Codex or Claude with <code>skills/benchwarmer/SKILL.md</code>. Review every extracted value against the source, then import the resulting JSON here.</p></details>
+        </aside>
+        <section class="editor" aria-label="Benchmark specification editor">
+          <div class="formgrid"><label>Title<input id="title" /></label><label>Metric<input id="metric" /></label><label>Unit<input id="unit" /></label><label>Direction<select id="direction"><option value="higher">Higher is better</option><option value="lower">Lower is better</option></select></label></div>
+          <label>Source<input id="sourceUrl" placeholder="Primary source or citation" /></label>
+          <label>Caveat<textarea id="caveat" rows="2" placeholder="Scope, version, hardware, uncertainty, or comparison warning"></textarea></label>
+          <label>Interpretation<textarea id="interpretation" rows="3" placeholder="What should this chart change about the decision?"></textarea></label>
+          <label>Values (one per line: label, value, optional note)<textarea id="values" rows="7" spellcheck="false"></textarea></label>
+          <div class="actions"><button id="update">Update chart</button><button class="quiet" data-export="svg">SVG</button><button class="quiet" data-export="png">PNG</button><button class="quiet" data-export="html">HTML</button><button class="quiet" data-export="json">Audit JSON</button></div>
+          <p id="status" role="status"></p>
+        </section>
+      </section>
+      <section class="output"><div id="chart" aria-live="polite"></div><p class="audit">A layout is not evidence. Keep the primary source, version, conditions, and caveats with the claim.</p></section>
+    </main>
+    <footer>Open source · Local-first · No data leaves your browser</footer>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

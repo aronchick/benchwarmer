@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "benchwarmer",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-14",
+  "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": false },
+  "observability": { "enabled": true }
+}
