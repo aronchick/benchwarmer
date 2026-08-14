@@ -4,6 +4,8 @@
 
 Benchwarmer turns a benchmark CSV, JSON document, or simple Markdown table into a decision-first chart that keeps its source, caveat, and interpretation attached. It runs locally in the browser; it does not upload your input.
 
+Live: <https://bench.bac.al> (with <https://benchwarmer.aronchick.workers.dev> as the Cloudflare fallback).
+
 ## Clone-first install
 
 ```sh

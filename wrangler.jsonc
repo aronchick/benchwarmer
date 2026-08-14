@@ -4,6 +4,6 @@
   "main": "worker.js",
   "compatibility_date": "2026-08-14",
   "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": false },
-  "routes": [{ "pattern": "bench.busted.dev", "custom_domain": true }],
+  "routes": [{ "pattern": "bench.bac.al", "custom_domain": true }],
   "observability": { "enabled": true }
 }
