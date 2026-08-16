@@ -4,7 +4,7 @@
 
 Benchwarmer turns a pasted, dropped, photographed, or uploaded benchmark image—or a CSV, JSON document, or Markdown table—into a corrected comparison. It discards source coloring and bolding, recomputes winners per benchmark row, marks runners-up and missing data, and keeps the source, caveat, and interpretation attached. It runs locally in the browser; it does not upload your input.
 
-Live: <https://bench.bac.al> (with <https://benchwarmer.aronchick.workers.dev> as the Cloudflare fallback).
+Live: <https://benchwarm.ing> (with <https://bench.bac.al> and <https://benchwarmer.aronchick.workers.dev> as Cloudflare fallbacks).
 
 ![A rehabilitated benchmark matrix with row-by-row winners, runners-up, and missing-data markings](examples/chart-crime-corrected.png)
 
