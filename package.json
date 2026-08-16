@@ -1,15 +1,20 @@
 {
   "name": "benchwarmer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "description": "Rehabilitate benchmark charts into auditable, decision-first layouts.",
   "type": "module",
-  "bin": { "benchwarmer": "./bin/benchwarmer.mjs" },
+  "bin": {
+    "benchwarmer": "./bin/benchwarmer.mjs"
+  },
   "scripts": {
     "test": "node --test",
-    "check": "node --check app.js && node --check bin/benchwarmer.mjs && node --check worker.js",
+    "check": "node --check app.js && node --check lib/benchmark.mjs && node --check bin/benchwarmer.mjs && node --check worker.js",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "example:image": "node scripts/render-matrix-svg.mjs examples/chart-crime.json examples/chart-crime-corrected.svg"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

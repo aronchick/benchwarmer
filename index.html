@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Turn benchmark tables into auditable, decision-first charts."
+      content="Find chart crimes in benchmark comparisons and rebuild them with data-correct highlighting."
     />
     <title>Benchwarmer — benchmark chart rehabilitation</title>
     <link rel="stylesheet" href="styles.css" />
@@ -21,13 +21,13 @@
     <main>
       <section class="intro">
         <div>
-          <p class="eyebrow">DECISION-FIRST BENCHMARK LAYOUTS</p>
-          <h1>Make the chart carry its own receipts.</h1>
+          <p class="eyebrow">BENCHMARK CHART-CRIME REHABILITATION</p>
+          <h1>Make the emphasis tell the truth.</h1>
         </div>
         <p>
-          Paste, drop, snap, or upload a benchmark image—or start with CSV,
-          JSON, or a Markdown table. Benchwarmer makes an editable, source-aware
-          chart—not a screenshot-shaped claim.
+          Benchwarmer reads the values, ignores misleading source styling, and
+          recomputes the winner for every benchmark. Paste a screenshot or a
+          table; get the original beside a corrected, exportable comparison.
         </p>
       </section>
       <section class="workspace">
@@ -42,6 +42,9 @@
           >
           <button class="camera quiet" id="cameraButton" type="button">
             Take a photo
+          </button>
+          <button class="demo-button quiet" id="demo" type="button">
+            Try the chart-crime example
           </button>
           <input
             class="visually-hidden"
@@ -59,13 +62,14 @@
             <img id="previewImage" alt="Imported benchmark" />
             <p id="imageMeta"></p>
             <div class="preview-actions">
-              <button id="extract" type="button">Extract table text</button
+              <button id="extract" type="button">
+                Extract &amp; rehabilitate</button
               ><button class="quiet" id="clearImage" type="button">
                 Clear image
               </button>
             </div>
             <p class="privacy-note">
-              OCR runs in this browser. Your image is not uploaded.
+              OCR runs in this browser. Source colors and bolding are ignored.
             </p>
           </section>
           <label
@@ -76,7 +80,7 @@
               placeholder="You can also paste an image anywhere on this page."
             ></textarea>
           </label>
-          <button id="parse">Make it legible</button>
+          <button id="parse">Find &amp; fix chart crimes</button>
           <details>
             <summary>Screenshot workflow (agent-ready)</summary>
             <p>
@@ -117,10 +121,15 @@
               placeholder="What should this chart change about the decision?"
             ></textarea>
           </label>
+          <label id="sourceHighlightWrap" hidden
+            >Column emphasized in the source (optional)<input
+              id="sourceHighlight"
+              placeholder="Exact model name"
+          /></label>
           <label
-            >Values (one per line: label, value, optional note)<textarea
+            >Editable benchmark data<textarea
               id="values"
-              rows="7"
+              rows="11"
               spellcheck="false"
             ></textarea>
           </label>
@@ -135,10 +144,19 @@
         </section>
       </section>
       <section class="output">
-        <div id="chart" aria-live="polite"></div>
+        <div class="comparison" id="comparison">
+          <article class="source-evidence" id="sourceEvidence" hidden>
+            <p class="source-label">SOURCE</p>
+            <h2>What the reader was shown</h2>
+            <img id="sourceEvidenceImage" alt="Original benchmark source" />
+            <p>The source styling is evidence of presentation—not of rank.</p>
+          </article>
+          <div id="chart" aria-live="polite"></div>
+        </div>
         <p class="audit">
-          A layout is not evidence. Keep the primary source, version,
-          conditions, and caveats with the claim.
+          Color never overrides arithmetic. Winners are calculated per row; ties
+          and missing data stay explicit. Keep the primary source, versions,
+          conditions, and caveats with the comparison.
         </p>
       </section>
     </main>

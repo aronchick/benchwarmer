@@ -1,72 +1,27 @@
+import {
+  auditMatrix,
+  clean,
+  matrixFromTsv,
+  normalize,
+  parseOcrText,
+  parseTable,
+  rankRow,
+  toEditableTable,
+} from "./lib/benchmark.mjs";
+
+export {
+  auditMatrix,
+  matrixFromTsv,
+  normalize,
+  parseOcrText,
+  parseTable,
+  rankRow,
+};
+
 const $ = (id) => document.getElementById(id);
-const fields = [
-  "title",
-  "metric",
-  "unit",
-  "sourceUrl",
-  "caveat",
-  "interpretation",
-  "values",
-];
 let spec = {};
 let imageFile = null;
 let imageUrl = null;
-
-function clean(value) {
-  return String(value ?? "").trim();
-}
-function number(value) {
-  const parsed = Number(String(value).replace(/[^0-9.+-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-export function parseTable(input) {
-  const text = clean(input)
-    .replace(/^```(?:csv|json)?|```$/gim, "")
-    .trim();
-  if (!text) throw new Error("Paste a table or choose a CSV/JSON file.");
-  if (text.startsWith("{")) return normalize(JSON.parse(text));
-  const rows = text
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) =>
-      line
-        .replace(/^\||\|$/g, "")
-        .split(/[|,\t]/)
-        .map(clean),
-    );
-  const data = rows.filter(
-    (row) => !row.every((cell) => /^:?-{2,}:?$/.test(cell)),
-  );
-  if (data.length < 2)
-    throw new Error("Need a header and at least one result row.");
-  const header = data[0].map((cell) => cell.toLowerCase());
-  const labelIndex = header.findIndex((cell) =>
-    /model|system|name|label|method/.test(cell),
-  );
-  const valueIndex = header.findIndex((cell) =>
-    /score|value|result|metric|accuracy|pass/.test(cell),
-  );
-  const labels = labelIndex >= 0 ? labelIndex : 0;
-  const values = valueIndex >= 0 ? valueIndex : 1;
-  const series = data
-    .slice(1)
-    .map((row) => ({
-      label: row[labels],
-      value: number(row[values]),
-      note: row.slice(Math.max(labels, values) + 1).join(" · "),
-    }))
-    .filter((row) => row.label && row.value !== null);
-  if (!series.length)
-    throw new Error(
-      "Could not find numeric benchmark values. Use label,value columns.",
-    );
-  return normalize({
-    title: "Imported benchmark",
-    metric: data[0][values] || "Score",
-    series,
-  });
-}
 
 export function fileKind(file) {
   const type = clean(file?.type).toLowerCase();
@@ -81,74 +36,110 @@ export function fileKind(file) {
   return "unknown";
 }
 
-export function parseOcrText(input) {
-  const rows = clean(input)
-    .split(/\r?\n/)
-    .map(clean)
-    .filter(Boolean)
-    .map((line) => {
-      const match = line.match(/^(.+?)\s+(-?\d[\d,.]*(?:\.\d+)?%?)\s*$/);
-      return match
-        ? {
-            label: clean(match[1].replace(/[|:]+$/, "")),
-            value: number(match[2]),
-          }
-        : null;
-    })
-    .filter(
-      (row) =>
-        row?.label &&
-        row.value !== null &&
-        !/^(score|value|result|accuracy)$/i.test(row.label),
-    );
-  if (rows.length < 2)
-    throw new Error(
-      "OCR needs at least two label-and-value lines. Edit the extracted text, then try again.",
-    );
-  return normalize({
-    title: "Imported benchmark",
-    metric: "Score",
-    series: rows,
-  });
+function escapeHtml(value) {
+  return clean(value).replace(
+    /[&<>\"]/g,
+    (char) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[char],
+  );
 }
 
-export function normalize(candidate) {
-  const series = (candidate.series || candidate.results || [])
-    .map((row) => ({
-      label: clean(row.label ?? row.name ?? row.model ?? row.system),
-      value: number(row.value ?? row.score ?? row.result),
-      note: clean(row.note),
-    }))
-    .filter((row) => row.label && row.value !== null);
-  if (!series.length)
-    throw new Error(
-      "The specification requires at least one label/value result.",
-    );
-  return {
-    title: clean(candidate.title) || "Untitled benchmark",
-    metric: clean(candidate.metric) || "Score",
-    unit: clean(candidate.unit),
-    higherIsBetter: candidate.higherIsBetter !== false,
-    source: clean(candidate.source),
-    caveat: clean(candidate.caveat),
-    interpretation: clean(candidate.interpretation),
-    series,
-  };
+function status(message, error = false) {
+  $("status").textContent = message;
+  $("status").classList.toggle("error", error);
+}
+
+function receipt(next) {
+  return `<div class="receipt">
+    ${next.interpretation ? `<p><strong>Interpretation:</strong> ${escapeHtml(next.interpretation)}</p>` : ""}
+    ${next.source ? `<p><strong>Source:</strong> ${escapeHtml(next.source)}</p>` : ""}
+    ${next.caveat ? `<p><strong>Caveat:</strong> ${escapeHtml(next.caveat)}</p>` : ""}
+  </div>`;
+}
+
+function renderSeries(next) {
+  const ordered = [...next.series].sort((a, b) =>
+    next.higherIsBetter ? b.value - a.value : a.value - b.value,
+  );
+  const min = Math.min(...ordered.map((row) => row.value), 0);
+  const max = Math.max(...ordered.map((row) => row.value));
+  const width = (value) =>
+    max === min ? 100 : Math.max(4, ((value - min) / (max - min)) * 100);
+  return `<article class="chart-card corrected-card">
+    <p class="rehab-label">REHABILITATED</p>
+    <h2>${escapeHtml(next.title)}</h2>
+    <p class="meta">${escapeHtml(next.metric)}${next.unit ? ` · ${escapeHtml(next.unit)}` : ""} · ${next.higherIsBetter ? "higher" : "lower"} is better</p>
+    ${ordered.map((row, index) => `<div class="bar-row ${index === 0 ? "winner-bar" : ""}"><strong>${escapeHtml(row.label)}</strong><div class="bar" style="width:${width(row.value)}%"></div><b>${row.value}</b>${index === 0 ? '<span class="winner-label">WINNER</span>' : ""}</div>`).join("")}
+    ${receipt(next)}
+  </article>`;
+}
+
+function renderMatrix(next) {
+  const audit = auditMatrix(next);
+  let previousGroup = null;
+  const body = next.rows
+    .map((row) => {
+      const group =
+        row.group && row.group !== previousGroup
+          ? `<tr class="group-row"><th colspan="${next.columns.length + 1}">${escapeHtml(row.group)}</th></tr>`
+          : "";
+      if (row.group) previousGroup = row.group;
+      const rank = rankRow(row);
+      const cells = row.values
+        .map((value, index) => {
+          const winner = rank.winners.includes(index);
+          const runner = rank.runnersUp.includes(index);
+          const classes = [
+            winner ? "winner" : "",
+            runner ? "runner" : "",
+            value === null ? "missing" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return `<td class="${classes}"><span class="value">${value ?? "—"}</span>${winner ? '<span class="rank-label">WINNER</span>' : runner ? '<span class="rank-label">2ND</span>' : value === null ? '<span class="rank-label">NO DATA</span>' : ""}</td>`;
+        })
+        .join("");
+      return `${group}<tr><th scope="row"><strong>${escapeHtml(row.label)}</strong>${row.detail ? `<span>${escapeHtml(row.detail)}</span>` : ""}<small>${row.higherIsBetter ? "↑ higher" : "↓ lower"} is better</small></th>${cells}</tr>`;
+    })
+    .join("");
+  const findings = audit.findings
+    .map(
+      (finding) =>
+        `<li class="${finding.severity}">${escapeHtml(finding.text)}</li>`,
+    )
+    .join("");
+  const headers = next.columns
+    .map(
+      (column, index) =>
+        `<th scope="col"><strong>${escapeHtml(column)}</strong><span>${audit.wins[index]} win${audit.wins[index] === 1 ? "" : "s"}</span></th>`,
+    )
+    .join("");
+  return `<article class="chart-card corrected-card matrix-card">
+    <div class="matrix-heading"><div><p class="rehab-label">REHABILITATED</p><h2>${escapeHtml(next.title)}</h2><p class="meta">${escapeHtml(next.metric)}${next.unit ? ` · ${escapeHtml(next.unit)}` : ""} · winners recomputed per row</p></div><div class="legend"><span class="legend-winner">WINNER</span><span class="legend-runner">2ND</span><span class="legend-missing">NO DATA</span></div></div>
+    <aside class="crime-report"><strong>Chart-crime report</strong><ul>${findings}</ul></aside>
+    <div class="matrix-scroll"><table class="matrix"><thead><tr><th scope="col">Benchmark</th>${headers}</tr></thead><tbody>${body}</tbody></table></div>
+    ${receipt(next)}
+  </article>`;
+}
+
+function render() {
+  $("chart").innerHTML =
+    spec.kind === "matrix" ? renderMatrix(spec) : renderSeries(spec);
+  const sourcePanel = $("sourceEvidence");
+  if (imageUrl) {
+    $("sourceEvidenceImage").src = imageUrl;
+    sourcePanel.hidden = false;
+    $("comparison").classList.add("has-source");
+  } else {
+    sourcePanel.hidden = true;
+    $("comparison").classList.remove("has-source");
+  }
 }
 
 function fromEditor() {
-  const series = $("values")
-    .value.split(/\r?\n/)
-    .map((line) => {
-      const [label, raw, ...notes] = line.split(",");
-      return {
-        label: clean(label),
-        value: number(raw),
-        note: clean(notes.join(",")),
-      };
-    })
-    .filter((row) => row.label && row.value !== null);
+  const parsed = parseTable($("values").value);
   return normalize({
+    ...parsed,
     title: $("title").value,
     metric: $("metric").value,
     unit: $("unit").value,
@@ -156,7 +147,7 @@ function fromEditor() {
     source: $("sourceUrl").value,
     caveat: $("caveat").value,
     interpretation: $("interpretation").value,
-    series,
+    sourceHighlight: parsed.kind === "matrix" ? $("sourceHighlight").value : "",
   });
 }
 
@@ -168,45 +159,46 @@ function toEditor(next) {
   $("sourceUrl").value = next.source;
   $("caveat").value = next.caveat;
   $("interpretation").value = next.interpretation;
-  $("values").value = next.series
-    .map((row) => [row.label, row.value, row.note].filter(Boolean).join(", "))
-    .join("\n");
+  $("sourceHighlight").value = next.sourceHighlight || "";
+  $("values").value = toEditableTable(next);
+  $("sourceHighlightWrap").hidden = next.kind !== "matrix";
 }
 
-function render() {
-  const ordered = [...spec.series].sort((a, b) =>
-    spec.higherIsBetter ? b.value - a.value : a.value - b.value,
-  );
-  const min = Math.min(...ordered.map((row) => row.value), 0),
-    max = Math.max(...ordered.map((row) => row.value));
-  const width = (value) =>
-    max === min ? 100 : Math.max(4, ((value - min) / (max - min)) * 100);
-  $("chart").innerHTML =
-    `<article class="chart-card"><h2>${escapeHtml(spec.title)}</h2><p class="meta">${escapeHtml(spec.metric)}${spec.unit ? ` · ${escapeHtml(spec.unit)}` : ""} · ${spec.higherIsBetter ? "higher is better" : "lower is better"}</p>${ordered.map((row) => `<div class="bar-row"><strong>${escapeHtml(row.label)}</strong><div class="bar" style="width:${width(row.value)}%" title="${row.value}"></div><b>${row.value}</b></div>`).join("")}<div class="receipt">${spec.interpretation ? `<p><strong>Interpretation:</strong> ${escapeHtml(spec.interpretation)}</p>` : ""}${spec.source ? `<p><strong>Source:</strong> ${escapeHtml(spec.source)}</p>` : ""}${spec.caveat ? `<p><strong>Caveat:</strong> ${escapeHtml(spec.caveat)}</p>` : ""}</div></article>`;
+function apply(
+  next,
+  message = "Benchmark rehabilitated. Highlights now follow the data.",
+) {
+  spec = normalize(next);
+  toEditor(spec);
+  render();
+  status(message);
 }
 
-function escapeHtml(value) {
-  return clean(value).replace(
-    /[&<>"]/g,
-    (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char],
-  );
-}
-function status(message, error = false) {
-  $("status").textContent = message;
-  $("status").style.color = error ? "#b42318" : "#496650";
-}
 function download(name, type, content) {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = name;
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+function exportCss() {
+  return [...document.styleSheets]
+    .flatMap((sheet) => {
+      try {
+        return [...sheet.cssRules].map((rule) => rule.cssText);
+      } catch {
+        return [];
+      }
+    })
+    .join("\n");
+}
+
 function svg() {
-  const card = $("chart");
+  const card = $("chart").firstElementChild;
   const bounds = card.getBoundingClientRect();
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(bounds.width)}" height="${Math.ceil(bounds.height)}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">${card.innerHTML}</div></foreignObject></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(bounds.width)}" height="${Math.ceil(bounds.height)}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>${exportCss()}</style>${card.outerHTML}</div></foreignObject></svg>`;
 }
 
 async function exportFile(kind) {
@@ -220,31 +212,23 @@ async function exportFile(kind) {
     return download(
       "benchwarmer-chart.html",
       "text/html",
-      `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="styles.css"><main><section class="output">${$("chart").innerHTML}</section></main>`,
+      `<!doctype html><meta charset="utf-8"><style>${exportCss()}</style>${$("chart").innerHTML}`,
     );
   const graphic = svg();
   if (kind === "svg")
     return download("benchwarmer-chart.svg", "image/svg+xml", graphic);
-  const image = new Image();
-  image.src = URL.createObjectURL(
+  const url = URL.createObjectURL(
     new Blob([graphic], { type: "image/svg+xml" }),
   );
+  const image = new Image();
+  image.src = url;
   await image.decode();
   const canvas = document.createElement("canvas");
-  canvas.width = image.width;
-  canvas.height = image.height;
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
   canvas.getContext("2d").drawImage(image, 0, 0);
+  URL.revokeObjectURL(url);
   canvas.toBlob((blob) => download("benchwarmer-chart.png", "image/png", blob));
-}
-
-function apply(
-  next,
-  message = "Chart updated. Export includes the visible receipts.",
-) {
-  spec = next;
-  toEditor(spec);
-  render();
-  status(message);
 }
 
 function clearImage() {
@@ -255,6 +239,7 @@ function clearImage() {
   $("imagePreview").hidden = true;
   $("file").value = "";
   $("camera").value = "";
+  render();
 }
 
 async function showImage(file, origin = "image") {
@@ -267,8 +252,9 @@ async function showImage(file, origin = "image") {
   $("imageMeta").textContent =
     `${file.name || origin} · ${preview.naturalWidth || "?"}×${preview.naturalHeight || "?"}`;
   $("imagePreview").hidden = false;
+  render();
   status(
-    "Image ready. Extract its text, then verify every value against the source.",
+    "Source image ready. Extract its values; its original styling will not be trusted.",
   );
 }
 
@@ -279,7 +265,7 @@ async function importFile(file, origin = "file") {
   if (kind === "table")
     return apply(
       parseTable(await file.text()),
-      `Imported ${origin}. Check the receipts before publishing.`,
+      `Imported ${origin}. Winners recomputed from values.`,
     );
   throw new Error("Choose an image, CSV, or JSON file.");
 }
@@ -294,23 +280,26 @@ async function extractImage() {
     const { default: Tesseract } = await import(
       "https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.esm.min.js"
     );
-    const { createWorker } = Tesseract;
-    const worker = await createWorker("eng", 1, {
+    const worker = await Tesseract.createWorker("eng", 1, {
       logger: ({ status: phase, progress }) =>
         status(
           `${phase || "Reading image"}${Number.isFinite(progress) ? ` · ${Math.round(progress * 100)}%` : ""}`,
         ),
     });
+    let result;
     try {
-      const result = await worker.recognize(imageFile);
-      $("source").value = clean(result.data.text);
+      result = await worker.recognize(imageFile, {}, { text: true, tsv: true });
     } finally {
       await worker.terminate();
     }
+    $("source").value = clean(result.data.text);
     try {
+      const extracted = result.data.tsv
+        ? matrixFromTsv(result.data.tsv)
+        : parseOcrText(result.data.text);
       apply(
-        parseOcrText($("source").value),
-        "Text extracted and charted. Verify the transcription and add source receipts.",
+        extracted,
+        "Values extracted and restyled. Verify the transcription before publishing.",
       );
     } catch (error) {
       status(error.message, true);
@@ -326,19 +315,30 @@ async function extractImage() {
 if (typeof document !== "undefined" && document.querySelectorAll) {
   $("parse").addEventListener("click", () => {
     try {
-      const text = $("source").value;
-      apply(
-        /[|,\t]/.test(text) || clean(text).startsWith("{")
-          ? parseTable(text)
-          : parseOcrText(text),
-      );
+      apply(parseTable($("source").value));
     } catch (error) {
-      status(error.message, true);
+      try {
+        apply(parseOcrText($("source").value));
+      } catch {
+        status(error.message, true);
+      }
     }
   });
   $("update").addEventListener("click", () => {
     try {
       apply(fromEditor());
+    } catch (error) {
+      status(error.message, true);
+    }
+  });
+  $("demo").addEventListener("click", async () => {
+    try {
+      apply(
+        await fetch("examples/chart-crime.json").then((response) =>
+          response.json(),
+        ),
+        "Loaded the chart-crime example. The source column emphasis is now audited and corrected.",
+      );
     } catch (error) {
       status(error.message, true);
     }
@@ -366,7 +366,7 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
   $("extract").addEventListener("click", extractImage);
   $("clearImage").addEventListener("click", () => {
     clearImage();
-    status("Image cleared. Ready for another benchmark.");
+    status("Source image cleared.");
   });
   $("dropzone").addEventListener("dragover", (event) => event.preventDefault());
   $("dropzone").addEventListener("drop", async (event) => {
@@ -395,13 +395,17 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
       status(error.message, true);
     }
   });
-  fetch("examples/sample.json")
+  fetch("examples/chart-crime.json")
     .then((response) => response.json())
     .then((data) =>
       apply(
-        normalize(data),
-        "Loaded illustrative example. Replace it with sourced results.",
+        data,
+        "Loaded the chart-crime example. Paste your own benchmark to rehabilitate it.",
       ),
     )
-    .catch(() => status("Ready for a sourced benchmark."));
+    .catch(() =>
+      fetch("examples/sample.json")
+        .then((response) => response.json())
+        .then((data) => apply(data)),
+    );
 }
