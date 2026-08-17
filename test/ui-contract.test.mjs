@@ -29,6 +29,14 @@ test("uses a stacked mobile matrix without page-level horizontal overflow", () =
   assert.match(app, /data-column="\$\{escapeHtml\(next\.columns\[index\]\)\}"/);
 });
 
+test("credits contributors and Expanso in the footer", () => {
+  assert.match(
+    html,
+    /href="https:\/\/github\.com\/aronchick\/benchwarmer\/graphs\/contributors"/,
+  );
+  assert.match(html, /Sponsored by <a href="https:\/\/expanso\.io">expanso\.io<\/a>/);
+});
+
 test("places the chart-crime report between source evidence and corrected chart", () => {
   assert.match(
     html,

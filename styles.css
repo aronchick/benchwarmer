@@ -547,6 +547,22 @@ footer {
   background: var(--ink);
   color: var(--paper);
   font-size: 12px;
+  text-align: center;
+}
+footer p {
+  margin: 0;
+}
+footer a {
+  color: inherit;
+  font-weight: 800;
+  text-underline-offset: 3px;
+}
+footer a:hover {
+  color: var(--accent);
+}
+footer .footer-note {
+  margin-top: 8px;
+  color: #b9c1bc;
 }
 @media (max-width: 760px) {
   header {
