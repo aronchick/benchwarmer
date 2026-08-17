@@ -229,7 +229,7 @@ code {
   position: relative;
 }
 .source-evidence::after {
-  content: "↓ REHABILITATE";
+  content: "↓ AUDIT";
   position: absolute;
   left: 50%;
   bottom: -28px;
@@ -390,9 +390,25 @@ code {
 .crime-report {
   border: 1.5px solid var(--line);
   background: #fff8df;
-  padding: 14px 18px;
-  margin: 0 0 22px;
+  padding: clamp(18px, 3vw, 32px);
+  margin: 0;
   font-size: 12px;
+  position: relative;
+}
+.crime-report::after {
+  content: "↓ REHABILITATE";
+  position: absolute;
+  left: 50%;
+  bottom: -28px;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: var(--ink);
+  color: white;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 .crime-report > strong {
   text-transform: uppercase;

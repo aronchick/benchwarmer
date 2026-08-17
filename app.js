@@ -77,6 +77,16 @@ function renderSeries(next) {
   </article>`;
 }
 
+function renderCrimeReport(audit) {
+  const findings = audit.findings
+    .map(
+      (finding) =>
+        `<li class="${finding.severity}">${escapeHtml(finding.text)}</li>`,
+    )
+    .join("");
+  return `<strong>Chart-crime report</strong><ul>${findings}</ul>`;
+}
+
 function renderMatrix(next) {
   const audit = auditMatrix(next);
   let previousGroup = null;
@@ -105,12 +115,6 @@ function renderMatrix(next) {
       return `${group}<tr class="benchmark-row"><th scope="row"><strong>${escapeHtml(row.label)}</strong>${row.detail ? `<span>${escapeHtml(row.detail)}</span>` : ""}<small>${row.higherIsBetter ? "↑ higher" : "↓ lower"} is better</small></th>${cells}</tr>`;
     })
     .join("");
-  const findings = audit.findings
-    .map(
-      (finding) =>
-        `<li class="${finding.severity}">${escapeHtml(finding.text)}</li>`,
-    )
-    .join("");
   const headers = next.columns
     .map(
       (column, index) =>
@@ -119,7 +123,6 @@ function renderMatrix(next) {
     .join("");
   return `<article class="chart-card corrected-card matrix-card">
     <div class="matrix-heading"><div><p class="rehab-label">REHABILITATED</p><h2>${escapeHtml(next.title)}</h2><p class="meta">${escapeHtml(next.metric)}${next.unit ? ` · ${escapeHtml(next.unit)}` : ""} · winners recomputed per row</p></div><div class="legend"><span class="legend-winner">WINNER</span><span class="legend-runner">2ND</span><span class="legend-missing">NO DATA</span></div></div>
-    <aside class="crime-report"><strong>Chart-crime report</strong><ul>${findings}</ul></aside>
     <div class="matrix-scroll"><table class="matrix"><thead><tr><th scope="col">Benchmark</th>${headers}</tr></thead><tbody>${body}</tbody></table></div>
     ${receipt(next)}
   </article>`;
@@ -128,6 +131,14 @@ function renderMatrix(next) {
 function render() {
   $("chart").innerHTML =
     spec.kind === "matrix" ? renderMatrix(spec) : renderSeries(spec);
+  const report = $("crimeReport");
+  if (spec.kind === "matrix") {
+    report.innerHTML = renderCrimeReport(auditMatrix(spec));
+    report.hidden = false;
+  } else {
+    report.innerHTML = "";
+    report.hidden = true;
+  }
   const sourcePanel = $("sourceEvidence");
   if (imageUrl) {
     $("sourceEvidenceImage").src = imageUrl;

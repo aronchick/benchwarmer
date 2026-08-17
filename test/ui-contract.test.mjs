@@ -24,3 +24,12 @@ test("uses a stacked mobile matrix without page-level horizontal overflow", () =
   assert.match(css, /\.matrix td::before \{[\s\S]*?content: attr\(data-column\)/);
   assert.match(app, /data-column="\$\{escapeHtml\(next\.columns\[index\]\)\}"/);
 });
+
+test("places the chart-crime report between source evidence and corrected chart", () => {
+  assert.match(
+    html,
+    /id="sourceEvidence"[\s\S]*id="crimeReport"[\s\S]*id="chart"/,
+  );
+  assert.match(app, /report\.innerHTML = renderCrimeReport\(auditMatrix\(spec\)\)/);
+  assert.doesNotMatch(app, /<aside class="crime-report">/);
+});
