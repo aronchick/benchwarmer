@@ -16,6 +16,10 @@ test("offers explicit image download and clipboard actions", () => {
   assert.match(app, /link\.href = pngDownloadUrl/);
   assert.match(html, /id="copyImage">Copy image<\/button\s*>/);
   assert.match(app, /new ClipboardItem\(\{ "image\/png": imagePromise \}\)/);
+  assert.match(app, /const PNG_SIZE = 1600/);
+  assert.match(app, /canvas\.width = PNG_SIZE/);
+  assert.match(app, /canvas\.height = PNG_SIZE/);
+  assert.match(app, /width="\$\{PNG_SOURCE_WIDTH\}"/);
 });
 
 test("uses a stacked mobile matrix without page-level horizontal overflow", () => {

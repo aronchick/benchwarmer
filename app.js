@@ -25,6 +25,10 @@ let imageUrl = null;
 let pngDownloadUrl = null;
 let pngDownloadPromise = null;
 let pngGeneration = 0;
+const PNG_SIZE = 1600;
+const PNG_PADDING = 64;
+const PNG_CARD_WIDTH = 1400;
+const PNG_SOURCE_WIDTH = 1440;
 
 export function fileKind(file) {
   const type = clean(file?.type).toLowerCase();
@@ -224,19 +228,65 @@ function svg() {
 }
 
 async function pngBlob() {
-  const graphic = svg();
+  const card = $("chart").firstElementChild;
+  const sourceHeight = Math.min(
+    16384,
+    Math.max(2400, Math.ceil(card.getBoundingClientRect().height) + 400),
+  );
+  const graphic = `<svg xmlns="http://www.w3.org/2000/svg" width="${PNG_SOURCE_WIDTH}" height="${sourceHeight}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${PNG_CARD_WIDTH}px;margin:20px"><style>${exportCss()}</style>${card.outerHTML}</div></foreignObject></svg>`;
   const image = new Image();
   // A blob URL gives an SVG containing foreignObject an opaque origin in
   // Chromium, which taints the canvas and blocks PNG export. A self-contained
   // data URL keeps the render exportable without sending the chart anywhere.
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(graphic)}`;
   await image.decode();
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = image.naturalWidth;
+  sourceCanvas.height = image.naturalHeight;
+  const sourceContext = sourceCanvas.getContext("2d", {
+    willReadFrequently: true,
+  });
+  if (!sourceContext)
+    throw new Error("This browser cannot create an image canvas.");
+  sourceContext.drawImage(image, 0, 0);
+  const pixels = sourceContext.getImageData(
+    0,
+    0,
+    sourceCanvas.width,
+    sourceCanvas.height,
+  ).data;
+  let lastOpaqueRow = 0;
+  for (let index = pixels.length - 1; index >= 3; index -= 4) {
+    if (pixels[index] !== 0) {
+      lastOpaqueRow = Math.floor(index / 4 / sourceCanvas.width);
+      break;
+    }
+  }
+  const contentHeight = Math.max(1, lastOpaqueRow + 1);
   const canvas = document.createElement("canvas");
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+  canvas.width = PNG_SIZE;
+  canvas.height = PNG_SIZE;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("This browser cannot create an image canvas.");
-  context.drawImage(image, 0, 0);
+  context.fillStyle = "#f7f2e8";
+  context.fillRect(0, 0, PNG_SIZE, PNG_SIZE);
+  const scale = Math.min(
+    (PNG_SIZE - PNG_PADDING * 2) / sourceCanvas.width,
+    (PNG_SIZE - PNG_PADDING * 2) / contentHeight,
+  );
+  const width = sourceCanvas.width * scale;
+  const height = contentHeight * scale;
+  context.drawImage(
+    sourceCanvas,
+    0,
+    0,
+    sourceCanvas.width,
+    contentHeight,
+    (PNG_SIZE - width) / 2,
+    (PNG_SIZE - height) / 2,
+    width,
+    height,
+  );
   return await new Promise((resolve, reject) =>
     canvas.toBlob(
       (blob) =>
@@ -290,7 +340,7 @@ async function copyChartImage() {
     await navigator.clipboard.write([
       new ClipboardItem({ "image/png": imagePromise }),
     ]);
-    status("Corrected chart copied as a PNG image.");
+    status("Corrected chart copied as a square PNG image.");
   } catch {
     status("Clipboard access was blocked. Use Download image instead.", true);
   }
