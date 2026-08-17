@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import worker, { browserSafeHeaders, extractTable, generatedJson, generatedJsonDiagnostic } from "../worker.js";
+import worker, { COOLDOWN_MS, ExtractionGovernor, browserSafeHeaders, extractTable, generatedJson, generatedJsonDiagnostic } from "../worker.js";
 
 const imageRequest = () =>
   new Request("https://benchwarm.ing/api/extract-table", {
@@ -12,6 +12,21 @@ const env = (governor) => ({
   GEMINI_API_KEY: "test-key",
   EXTRACTION_RATE_LIMIT_SALT: "test-salt",
   EXTRACTION_GOVERNOR: { idFromName: () => "global", get: () => governor },
+});
+
+test("limits each visitor to one extraction every ten seconds", async (t) => {
+  const originalNow = Date.now;
+  t.after(() => { Date.now = originalNow; });
+  let now = 0;
+  Date.now = () => now;
+  let limits;
+  const governor = new ExtractionGovernor({ storage: { get: async () => limits, put: async (_key, value) => { limits = value; } } });
+  const reserve = () => governor.fetch(new Request("https://limits/reserve", { method: "POST", body: JSON.stringify({ client: "visitor" }) }));
+  assert.equal((await reserve()).status, 200);
+  now = COOLDOWN_MS - 1;
+  assert.equal((await reserve()).status, 429);
+  now = COOLDOWN_MS;
+  assert.equal((await reserve()).status, 200);
 });
 
 test("removes an upstream CSP that blocks the app's own assets", async () => {

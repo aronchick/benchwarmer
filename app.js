@@ -1,9 +1,7 @@
 import {
   auditMatrix,
   clean,
-  matrixFromTsv,
   normalize,
-  parseOcrText,
   parseTable,
   rankRow,
   toEditableTable,
@@ -11,9 +9,7 @@ import {
 
 export {
   auditMatrix,
-  matrixFromTsv,
   normalize,
-  parseOcrText,
   parseTable,
   rankRow,
 };
@@ -403,81 +399,6 @@ async function importFile(file, origin = "file") {
   throw new Error("Choose an image, CSV, or JSON file.");
 }
 
-async function ocrReadyImage(file) {
-  if (typeof createImageBitmap !== "function") return file;
-  const source = await createImageBitmap(file);
-  const scale = source.width < 1800 ? 2 : 1;
-  const canvas = document.createElement("canvas");
-  canvas.width = source.width * scale;
-  canvas.height = source.height * scale;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) return file;
-  context.drawImage(source, 0, 0, canvas.width, canvas.height);
-  source.close?.();
-  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  for (let index = 0; index < pixels.data.length; index += 4) {
-    const red = pixels.data[index];
-    const green = pixels.data[index + 1];
-    const blue = pixels.data[index + 2];
-    // Selected columns often use pale blue fills. Flattening every light fill
-    // to white preserves the dark glyphs without allowing the fill to erase a
-    // whole model column during OCR.
-    const isInk = Math.min(red, green, blue) < 115;
-    const output = isInk ? 0 : 255;
-    pixels.data[index] = output;
-    pixels.data[index + 1] = output;
-    pixels.data[index + 2] = output;
-  }
-  context.putImageData(pixels, 0, 0);
-  return await new Promise((resolve) =>
-    canvas.toBlob((blob) => resolve(blob || file), "image/png"),
-  );
-}
-
-async function extractImage() {
-  if (!imageFile)
-    return status("Paste, drop, choose, or photograph an image first.", true);
-  const button = $("extract");
-  button.disabled = true;
-  try {
-    status("Preparing the source for local OCR…");
-    const preparedImage = await ocrReadyImage(imageFile);
-    status("Loading local OCR…");
-    const { default: Tesseract } = await import(
-      "https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.esm.min.js"
-    );
-    const worker = await Tesseract.createWorker("eng", 1, {
-      logger: ({ status: phase, progress }) =>
-        status(
-          `${phase || "Reading image"}${Number.isFinite(progress) ? ` · ${Math.round(progress * 100)}%` : ""}`,
-        ),
-    });
-    let result;
-    try {
-      result = await worker.recognize(preparedImage, {}, { text: true, tsv: true });
-    } finally {
-      await worker.terminate();
-    }
-    $("source").value = clean(result.data.text);
-    try {
-      const extracted = result.data.tsv
-        ? matrixFromTsv(result.data.tsv)
-        : parseOcrText(result.data.text);
-      apply(
-        extracted,
-        "Values extracted and restyled. Verify the transcription before publishing.",
-      );
-    } catch (error) {
-      status(error.message, true);
-      $("source").focus();
-    }
-  } catch (error) {
-    status(`Could not read that image: ${error.message}`, true);
-  } finally {
-    button.disabled = false;
-  }
-}
-
 async function extractImageWithAi() {
   if (!imageFile)
     return status("Paste, drop, choose, or photograph an image first.", true);
@@ -503,7 +424,7 @@ async function extractImageWithAi() {
   } catch (error) {
     status(error.message, true);
   } finally {
-    button.textContent = "AI table extraction";
+    button.textContent = "Extract & rehabilitate with AI";
     button.disabled = false;
   }
 }
@@ -513,11 +434,7 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
     try {
       apply(parseTable($("source").value));
     } catch (error) {
-      try {
-        apply(parseOcrText($("source").value));
-      } catch {
-        status(error.message, true);
-      }
+      status(error.message, true);
     }
   });
   $("update").addEventListener("click", () => {
@@ -579,8 +496,7 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
       status(error.message, true);
     }
   });
-  $("extract").addEventListener("click", extractImage);
-  $("extractAi").addEventListener("click", extractImageWithAi);
+$("extractAi").addEventListener("click", extractImageWithAi);
   $("clearImage").addEventListener("click", () => {
     clearImage();
     status("Source image cleared.");

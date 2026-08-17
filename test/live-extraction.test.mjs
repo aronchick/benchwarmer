@@ -6,7 +6,7 @@ import test from "node:test";
 const enabled = process.env.RUN_LIVE_INTEGRATION === "1";
 const endpoint = process.env.BENCHWARMER_LIVE_URL || "https://benchwarm.ing";
 const fixtureDirectory = new URL("./fixtures/gemini/", import.meta.url);
-const cooldownMs = 3_100;
+const cooldownMs = 10_100;
 
 const fixtures = [
   {
@@ -29,7 +29,7 @@ function readableBody(body) {
 
 for (const fixture of fixtures) {
   test(`live Gemini extraction: ${basename(fixture.file)}`, { skip: !enabled, timeout: 120_000 }, async () => {
-    // Production intentionally permits one request per visitor every three seconds.
+    // Production intentionally permits one request per visitor every ten seconds.
     // Keep these regression calls serial and polite even when the test runner changes.
     await new Promise((resolve) => setTimeout(resolve, cooldownMs));
     const image = await readFile(join(fixtureDirectory.pathname, fixture.file));

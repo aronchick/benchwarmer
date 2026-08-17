@@ -1,4 +1,4 @@
-const COOLDOWN_MS = 3000;
+export const COOLDOWN_MS = 10_000;
 const DAILY_LIMIT = 20;
 const MONTHLY_LIMIT = 480;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;

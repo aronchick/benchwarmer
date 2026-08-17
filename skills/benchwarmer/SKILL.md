@@ -10,4 +10,4 @@ Use this skill when a user supplies a benchmark screenshot or a chart without a 
 6. If a source visually emphasizes a column that does not win every row, set `sourceHighlight` and report the mismatch as a chart crime.
 7. Ask the user to verify the extraction against a primary source before publishing or using it for a decision.
 
-The outcome is an editable specification, not OCR proof.
+The outcome is an editable specification, not extraction proof.

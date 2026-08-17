@@ -24,10 +24,11 @@ test("offers explicit image download and clipboard actions", () => {
   assert.match(app, /width="\$\{PNG_SOURCE_WIDTH\}"/);
 });
 
-test("normalizes highlighted screenshot columns before local OCR", () => {
-  assert.match(app, /async function ocrReadyImage\(file\)/);
-  assert.match(app, /const isInk = Math\.min\(red, green, blue\) < 115/);
-  assert.match(app, /worker\.recognize\(preparedImage, \{\}, \{ text: true, tsv: true \}\)/);
+test("uses Gemini as the only image extraction path", () => {
+  assert.match(app, /async function extractImageWithAi\(\)/);
+  assert.doesNotMatch(app, /Tesseract|ocrReadyImage|extractImage\(\)|matrixFromTsv|parseOcrText/);
+  assert.doesNotMatch(html, /id="extract"/);
+  assert.match(html, /Extract &amp; rehabilitate with AI/);
 });
 
 test("uses a stacked mobile matrix without page-level horizontal overflow", () => {
