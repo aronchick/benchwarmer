@@ -10,11 +10,21 @@
   "scripts": {
     "test": "node --test",
     "check": "node --check app.js && node --check lib/benchmark.mjs && node --check bin/benchwarmer.mjs && node --check worker.js",
+    "verify": "npm run check && npm test && npm run deploy:dry",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run",
     "example:image": "node scripts/render-matrix-svg.mjs examples/chart-crime.json examples/chart-crime-corrected.svg"
+  },
+  "devDependencies": {
+    "wrangler": "4.123.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true,
+    "esbuild@0.28.1": true,
+    "workerd@1.20260811.1": true
   }
 }

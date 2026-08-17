@@ -1,0 +1,16 @@
+**/.git/**
+**/.github/**
+**/node_modules/**
+**/.wrangler/**
+bin/**
+schemas/**
+scripts/**
+skills/**
+test/**
+.gitignore
+README.md
+package.json
+package-lock.json
+worker.js
+wrangler.jsonc
+*.log

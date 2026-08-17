@@ -19,6 +19,10 @@ npm run dev
 
 Open the local URL that Wrangler prints. For production deployment, authenticate with Cloudflare and run `npm run deploy`.
 
+## Release flow
+
+Pull requests run the same `npm run verify` gate available locally. Once a non-draft pull request has an approving review, Benchwarmer enables GitHub auto-merge; GitHub merges it only after the required `verify` check passes. The protected `main` branch is the production source, and Cloudflare publishes the merged revision automatically.
+
 ## Portable specification and CLI
 
 The public schema supports both a single ranked series and a multi-model benchmark matrix. Start with [examples/chart-crime.json](examples/chart-crime.json), which transcribes the included misleading-column example:
