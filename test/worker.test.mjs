@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import worker, { browserSafeHeaders } from "../worker.js";
+import worker, { browserSafeHeaders, extractTable } from "../worker.js";
+
+const imageRequest = () =>
+  new Request("https://benchwarm.ing/api/extract-table", {
+    method: "POST",
+    headers: { "content-type": "image/png", "CF-Connecting-IP": "203.0.113.1" },
+    body: new Uint8Array([137, 80, 78, 71]),
+  });
+const env = (governor) => ({
+  GEMINI_API_KEY: "test-key",
+  EXTRACTION_RATE_LIMIT_SALT: "test-salt",
+  EXTRACTION_GOVERNOR: { idFromName: () => "global", get: () => governor },
+});
 
 test("removes an upstream CSP that blocks the app's own assets", async () => {
   const upstream = new Response("<link rel=stylesheet href=styles.css>", {
@@ -35,4 +47,21 @@ test("preserves ordinary upstream headers", () => {
 
   assert.equal(headers.get("etag"), '"abc"');
   assert.equal(headers.get("cache-control"), "public, max-age=300");
+});
+
+test("returns Gemini structured table output", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] }) }] } }] });
+  const response = await extractTable(imageRequest(), env({ fetch: async () => Response.json({ ok: true }) }));
+  assert.deepEqual(await response.json(), { kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] });
+});
+
+test("reports an upstream Gemini status without exposing credentials", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response("invalid key", { status: 401 });
+  const response = await extractTable(imageRequest(), env({ fetch: async () => Response.json({ ok: true }) }));
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { error: "Gemini could not extract this table. Try again later or edit locally.", code: "gemini_upstream", upstreamStatus: 401 });
 });

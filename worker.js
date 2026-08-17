@@ -38,7 +38,7 @@ export default {
   },
 };
 
-async function extractTable(request, env) {
+export async function extractTable(request, env) {
   if (request.method !== "POST") return Response.json({ error: "Method not allowed." }, { status: 405 });
   if (!env.GEMINI_API_KEY || !env.EXTRACTION_RATE_LIMIT_SALT)
     return Response.json({ error: "AI extraction is not configured yet." }, { status: 503 });
@@ -53,10 +53,13 @@ async function extractTable(request, env) {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ contents: [{ parts: [{ text: "Extract this benchmark table. Return JSON only: {kind:'matrix',title,metric,columns:string[],rows:[{label,detail,higherIsBetter:true,values:(number|null)[]}]}. Preserve every visible model column and row. Use null for dashes. Do not infer missing values." }, { inlineData: { mimeType: request.headers.get("content-type") || "image/png", data: toBase64(image) } }] }], generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1500 } }),
   });
-  if (!google.ok) return Response.json({ error: "Gemini could not extract this table. Try again later or edit locally." }, { status: 502 });
+  if (!google.ok) {
+    console.error("Gemini extraction failed", google.status, await google.text());
+    return Response.json({ error: "Gemini could not extract this table. Try again later or edit locally.", code: "gemini_upstream", upstreamStatus: google.status }, { status: 502 });
+  }
   const payload = await google.json();
   try { return Response.json(JSON.parse(payload.candidates[0].content.parts[0].text)); }
-  catch { return Response.json({ error: "Gemini returned an unreadable table. Try again or edit locally." }, { status: 502 }); }
+  catch { return Response.json({ error: "Gemini returned an unreadable table. Try again or edit locally.", code: "gemini_invalid_json" }, { status: 502 }); }
 }
 
 async function fingerprint(value, salt) { const bytes = new TextEncoder().encode(`${salt}:${value}`); const digest = await crypto.subtle.digest("SHA-256", bytes); return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
