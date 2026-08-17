@@ -64,12 +64,15 @@
             <div class="preview-actions">
               <button id="extract" type="button">
                 Extract &amp; rehabilitate</button
+              ><button id="extractAi" type="button">
+                AI table extraction</button
               ><button class="quiet" id="clearImage" type="button">
                 Clear image
               </button>
             </div>
             <p class="privacy-note">
-              OCR runs in this browser. Source colors and bolding are ignored.
+              Local OCR stays in this browser. AI table extraction sends this
+              image to Google Gemini, is capped, and always requires review.
             </p>
           </section>
           <label
@@ -175,7 +178,7 @@
         >
         · Sponsored by <a href="https://expanso.io">expanso.io</a>
       </p>
-      <p class="footer-note">Open source · Local-first · No data leaves your browser</p>
+      <p class="footer-note">Open source · Local-first OCR · Optional AI extraction sends only your selected image to Gemini</p>
     </footer>
     <script type="module" src="app.js"></script>
   </body>

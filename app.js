@@ -478,6 +478,36 @@ async function extractImage() {
   }
 }
 
+async function extractImageWithAi() {
+  if (!imageFile)
+    return status("Paste, drop, choose, or photograph an image first.", true);
+  const button = $("extractAi");
+  button.disabled = true;
+  button.textContent = "Reading table…";
+  try {
+    status("Sending the selected image to Gemini for table extraction…");
+    const [response] = await Promise.all([
+      fetch("/api/extract-table", {
+        method: "POST",
+        headers: { "content-type": imageFile.type || "image/png" },
+        body: imageFile,
+      }),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "AI extraction failed.");
+    apply(
+      result,
+      "AI table extracted. Verify every value against the source before publishing.",
+    );
+  } catch (error) {
+    status(error.message, true);
+  } finally {
+    button.textContent = "AI table extraction";
+    button.disabled = false;
+  }
+}
+
 if (typeof document !== "undefined" && document.querySelectorAll) {
   $("parse").addEventListener("click", () => {
     try {
@@ -550,6 +580,7 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
     }
   });
   $("extract").addEventListener("click", extractImage);
+  $("extractAi").addEventListener("click", extractImageWithAi);
   $("clearImage").addEventListener("click", () => {
     clearImage();
     status("Source image cleared.");

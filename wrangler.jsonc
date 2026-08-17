@@ -4,6 +4,8 @@
   "main": "worker.js",
   "compatibility_date": "2026-08-14",
   "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": true },
+  "durable_objects": { "bindings": [{ "name": "EXTRACTION_GOVERNOR", "class_name": "ExtractionGovernor" }] },
+  "migrations": [{ "tag": "v2", "new_sqlite_classes": ["ExtractionGovernor"] }],
   "routes": [
     { "pattern": "benchwarm.ing", "custom_domain": true }
   ],
