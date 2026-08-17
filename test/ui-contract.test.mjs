@@ -24,6 +24,12 @@ test("offers explicit image download and clipboard actions", () => {
   assert.match(app, /width="\$\{PNG_SOURCE_WIDTH\}"/);
 });
 
+test("normalizes highlighted screenshot columns before local OCR", () => {
+  assert.match(app, /async function ocrReadyImage\(file\)/);
+  assert.match(app, /const isInk = Math\.min\(red, green, blue\) < 115/);
+  assert.match(app, /worker\.recognize\(preparedImage, \{\}, \{ text: true, tsv: true \}\)/);
+});
+
 test("uses a stacked mobile matrix without page-level horizontal overflow", () => {
   assert.match(css, /overflow-x: hidden/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.matrix \{[\s\S]*?min-width: 0/);

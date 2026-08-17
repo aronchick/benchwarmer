@@ -71,6 +71,42 @@ test("infers a simple comparison matrix from positional OCR TSV", () => {
   assert.deepEqual(spec.rows[0].values, [72, 81]);
 });
 
+test("does not turn a screenshot subtitle into model columns", () => {
+  const header =
+    "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext";
+  const word = (line, wordNumber, left, top, width, text) =>
+    `5\t1\t1\t1\t${line}\t${wordNumber}\t${left}\t${top}\t${width}\t20\t95\t${text}`;
+  const rows = [
+    header,
+    word(1, 1, 10, 10, 60, "Results"),
+    word(1, 2, 80, 10, 30, "as"),
+    word(1, 3, 120, 10, 30, "of"),
+  ];
+  const columns = [300, 450, 600, 750, 900, 1050];
+  ["Gemini", "Gemini", "Gemini", "GPT-5.6", "Grok", "Claude"].forEach((name, index) =>
+    rows.push(word(2, index + 1, columns[index], 160, 60, name)),
+  );
+  [
+    ["SWE-Bench", [58.7, 55.1, 54.2, 62.7, 64.7, 63.2]],
+    ["Terminal-bench", [78, 76.2, 73.8, 84.7, 83.3, 80.4]],
+    ["MLE-Bench", [63.9, 49.7, 42.6, 47.6, 43.2, 66.9]],
+  ].forEach(([label, values], rowIndex) => {
+    const top = 240 + rowIndex * 50;
+    rows.push(word(3 + rowIndex, 1, 20, top, 120, label));
+    values.forEach((value, index) =>
+      rows.push(
+        word(3 + rowIndex, index + 2, columns[index], top, 45, String(value)),
+      ),
+    );
+  });
+  const spec = matrixFromTsv(rows.join("\n"));
+  assert.equal(spec.columns.length, 6);
+  assert.doesNotMatch(spec.columns.join(" "), /Results as of/);
+  assert.equal(spec.rows.length, 3);
+  assert.equal(spec.rows[1].label, "Terminal-bench");
+  assert.deepEqual(spec.rows[1].values, [78, 76.2, 73.8, 84.7, 83.3, 80.4]);
+});
+
 test("rejects empty specifications", () =>
   assert.throws(() => normalize({ title: "x", metric: "y", series: [] })));
 
