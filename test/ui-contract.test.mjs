@@ -10,7 +10,10 @@ const [html, app, css] = await Promise.all([
 ]);
 
 test("offers explicit image download and clipboard actions", () => {
-  assert.match(html, />Download image<\/button\s*>/);
+  assert.match(html, /id="downloadImage"[\s\S]*download="benchwarmer-chart\.png"/);
+  assert.doesNotMatch(html, /data-export="png"/);
+  assert.match(app, /preparePngDownload\(\)/);
+  assert.match(app, /link\.href = pngDownloadUrl/);
   assert.match(html, /id="copyImage">Copy image<\/button\s*>/);
   assert.match(app, /new ClipboardItem\(\{ "image\/png": imagePromise \}\)/);
 });

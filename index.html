@@ -136,7 +136,12 @@
           <div class="actions">
             <button id="update">Update chart</button
             ><button class="quiet" data-export="svg">SVG</button
-            ><button class="quiet" data-export="png">Download image</button
+            ><a
+              class="button quiet"
+              id="downloadImage"
+              download="benchwarmer-chart.png"
+              aria-disabled="true"
+              >Preparing image…</a
             ><button class="quiet" id="copyImage">Copy image</button
             ><button class="quiet" data-export="html">HTML</button
             ><button class="quiet" data-export="json">Audit JSON</button>

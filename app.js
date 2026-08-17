@@ -22,6 +22,9 @@ const $ = (id) => document.getElementById(id);
 let spec = {};
 let imageFile = null;
 let imageUrl = null;
+let pngDownloadUrl = null;
+let pngDownloadPromise = null;
+let pngGeneration = 0;
 
 export function fileKind(file) {
   const type = clean(file?.type).toLowerCase();
@@ -134,6 +137,7 @@ function render() {
     sourcePanel.hidden = true;
     $("comparison").classList.remove("has-source");
   }
+  preparePngDownload();
 }
 
 function fromEditor() {
@@ -233,13 +237,43 @@ async function pngBlob() {
   );
 }
 
+function preparePngDownload() {
+  const generation = ++pngGeneration;
+  const link = $("downloadImage");
+  if (pngDownloadUrl) {
+    const staleUrl = pngDownloadUrl;
+    setTimeout(() => URL.revokeObjectURL(staleUrl), 1000);
+  }
+  pngDownloadUrl = null;
+  link.removeAttribute("href");
+  link.setAttribute("aria-disabled", "true");
+  link.textContent = "Preparing image…";
+  pngDownloadPromise = Promise.resolve()
+    .then(pngBlob)
+    .then((blob) => {
+      if (generation !== pngGeneration) return blob;
+      pngDownloadUrl = URL.createObjectURL(blob);
+      link.href = pngDownloadUrl;
+      link.removeAttribute("aria-disabled");
+      link.textContent = "Download image";
+      return blob;
+    })
+    .catch((error) => {
+      if (generation === pngGeneration) {
+        link.textContent = "Image unavailable";
+        status(`Could not prepare the image: ${error.message}`, true);
+      }
+      return null;
+    });
+}
+
 async function copyChartImage() {
-  const imagePromise = pngBlob();
+  const imagePromise = (pngDownloadPromise || pngBlob()).then((blob) => {
+    if (!blob) throw new Error("The PNG image is unavailable.");
+    return blob;
+  });
   if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
-    downloadBlob("benchwarmer-chart.png", await imagePromise);
-    return status(
-      "Image copying is not supported here, so the PNG was downloaded instead.",
-    );
+    return status("Image copying is not supported here. Use Download image.", true);
   }
   try {
     await navigator.clipboard.write([
@@ -247,8 +281,7 @@ async function copyChartImage() {
     ]);
     status("Corrected chart copied as a PNG image.");
   } catch {
-    downloadBlob("benchwarmer-chart.png", await imagePromise);
-    status("Clipboard access was blocked, so the PNG was downloaded instead.");
+    status("Clipboard access was blocked. Use Download image instead.", true);
   }
 }
 
@@ -268,8 +301,6 @@ async function exportFile(kind) {
   const graphic = svg();
   if (kind === "svg")
     return download("benchwarmer-chart.svg", "image/svg+xml", graphic);
-  downloadBlob("benchwarmer-chart.png", await pngBlob());
-  status("Corrected chart downloaded as a PNG image.");
 }
 
 function clearImage() {
@@ -395,6 +426,13 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
         }
       }),
     );
+  $("downloadImage").addEventListener("click", (event) => {
+    if (!event.currentTarget.href) {
+      event.preventDefault();
+      return status("The image is still being prepared. Try again in a moment.");
+    }
+    status("Corrected chart downloaded as a PNG image.");
+  });
   $("copyImage").addEventListener("click", async () => {
     try {
       await copyChartImage();
