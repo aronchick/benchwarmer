@@ -9,6 +9,8 @@ scripts/**
 skills/**
 test/**
 .gitignore
+.env
+.envrc
 README.md
 package.json
 package-lock.json
