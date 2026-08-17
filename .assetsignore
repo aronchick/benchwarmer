@@ -1,5 +1,6 @@
 **/.git/**
 **/.github/**
+**/.gstack/**
 **/node_modules/**
 **/.wrangler/**
 bin/**
