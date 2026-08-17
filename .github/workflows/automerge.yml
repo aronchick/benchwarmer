@@ -12,11 +12,27 @@ jobs:
   enable-automerge:
     if: >-
       github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.author_association == 'OWNER'
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Merge owner changes after required checks pass
+      - name: Confirm the author is an owner or maintainer
+        id: access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          permission="$(gh api "repos/$REPOSITORY/collaborators/$AUTHOR/permission" --jq .permission)"
+          case "$permission" in
+            admin|maintain) echo "eligible=true" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "$AUTHOR has '$permission' permission; owner auto-merge is not enabled."
+              echo "eligible=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Merge after required checks pass
+        if: steps.access.outputs.eligible == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
