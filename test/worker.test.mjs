@@ -52,9 +52,14 @@ test("preserves ordinary upstream headers", () => {
 test("returns Gemini structured table output", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
-  globalThis.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] }) }] } }] });
+  let generationConfig;
+  globalThis.fetch = async (_url, request) => {
+    generationConfig = JSON.parse(request.body).generationConfig;
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] }) }] } }] });
+  };
   const response = await extractTable(imageRequest(), env({ fetch: async () => Response.json({ ok: true }) }));
   assert.deepEqual(await response.json(), { kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] });
+  assert.deepEqual(generationConfig, { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 4096, thinkingConfig: { thinkingLevel: "MINIMAL" } });
 });
 
 test("reads JSON from a non-thought Gemini content part", () => {
