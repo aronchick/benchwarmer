@@ -1,8 +1,8 @@
-name: Automerge approved pull requests
+name: Automerge owner pull requests
 
 on:
-  pull_request_review:
-    types: [submitted]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: write
@@ -11,12 +11,12 @@ permissions:
 jobs:
   enable-automerge:
     if: >-
-      github.event.review.state == 'approved' &&
       github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.author_association == 'OWNER'
     runs-on: ubuntu-latest
     steps:
-      - name: Merge after all branch protections pass
+      - name: Merge owner changes after required checks pass
         env:
           GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
