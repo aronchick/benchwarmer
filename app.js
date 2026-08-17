@@ -22,6 +22,13 @@ const $ = (id) => document.getElementById(id);
 let spec = {};
 let imageFile = null;
 let imageUrl = null;
+let pngDownloadUrl = null;
+let pngDownloadPromise = null;
+let pngGeneration = 0;
+const PNG_SIZE = 1600;
+const PNG_PADDING = 64;
+const PNG_CARD_WIDTH = 1400;
+const PNG_SOURCE_WIDTH = 1440;
 
 export function fileKind(file) {
   const type = clean(file?.type).toLowerCase();
@@ -74,6 +81,16 @@ function renderSeries(next) {
   </article>`;
 }
 
+function renderCrimeReport(audit) {
+  const findings = audit.findings
+    .map(
+      (finding) =>
+        `<li class="${finding.severity}">${escapeHtml(finding.text)}</li>`,
+    )
+    .join("");
+  return `<strong>Chart-crime report</strong><ul>${findings}</ul>`;
+}
+
 function renderMatrix(next) {
   const audit = auditMatrix(next);
   let previousGroup = null;
@@ -96,17 +113,11 @@ function renderMatrix(next) {
           ]
             .filter(Boolean)
             .join(" ");
-          return `<td class="${classes}"><span class="value">${value ?? "—"}</span>${winner ? '<span class="rank-label">WINNER</span>' : runner ? '<span class="rank-label">2ND</span>' : value === null ? '<span class="rank-label">NO DATA</span>' : ""}</td>`;
+          return `<td class="${classes}" data-column="${escapeHtml(next.columns[index])}"><span class="value">${value ?? "—"}</span>${winner ? '<span class="rank-label">WINNER</span>' : runner ? '<span class="rank-label">2ND</span>' : value === null ? '<span class="rank-label">NO DATA</span>' : ""}</td>`;
         })
         .join("");
-      return `${group}<tr><th scope="row"><strong>${escapeHtml(row.label)}</strong>${row.detail ? `<span>${escapeHtml(row.detail)}</span>` : ""}<small>${row.higherIsBetter ? "↑ higher" : "↓ lower"} is better</small></th>${cells}</tr>`;
+      return `${group}<tr class="benchmark-row"><th scope="row"><strong>${escapeHtml(row.label)}</strong>${row.detail ? `<span>${escapeHtml(row.detail)}</span>` : ""}<small>${row.higherIsBetter ? "↑ higher" : "↓ lower"} is better</small></th>${cells}</tr>`;
     })
-    .join("");
-  const findings = audit.findings
-    .map(
-      (finding) =>
-        `<li class="${finding.severity}">${escapeHtml(finding.text)}</li>`,
-    )
     .join("");
   const headers = next.columns
     .map(
@@ -116,7 +127,6 @@ function renderMatrix(next) {
     .join("");
   return `<article class="chart-card corrected-card matrix-card">
     <div class="matrix-heading"><div><p class="rehab-label">REHABILITATED</p><h2>${escapeHtml(next.title)}</h2><p class="meta">${escapeHtml(next.metric)}${next.unit ? ` · ${escapeHtml(next.unit)}` : ""} · winners recomputed per row</p></div><div class="legend"><span class="legend-winner">WINNER</span><span class="legend-runner">2ND</span><span class="legend-missing">NO DATA</span></div></div>
-    <aside class="crime-report"><strong>Chart-crime report</strong><ul>${findings}</ul></aside>
     <div class="matrix-scroll"><table class="matrix"><thead><tr><th scope="col">Benchmark</th>${headers}</tr></thead><tbody>${body}</tbody></table></div>
     ${receipt(next)}
   </article>`;
@@ -125,6 +135,14 @@ function renderMatrix(next) {
 function render() {
   $("chart").innerHTML =
     spec.kind === "matrix" ? renderMatrix(spec) : renderSeries(spec);
+  const report = $("crimeReport");
+  if (spec.kind === "matrix") {
+    report.innerHTML = renderCrimeReport(auditMatrix(spec));
+    report.hidden = false;
+  } else {
+    report.innerHTML = "";
+    report.hidden = true;
+  }
   const sourcePanel = $("sourceEvidence");
   if (imageUrl) {
     $("sourceEvidenceImage").src = imageUrl;
@@ -134,6 +152,7 @@ function render() {
     sourcePanel.hidden = true;
     $("comparison").classList.remove("has-source");
   }
+  preparePngDownload();
 }
 
 function fromEditor() {
@@ -174,13 +193,20 @@ function apply(
   status(message);
 }
 
-function download(name, type, content) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
+function downloadBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = name;
+  link.hidden = true;
+  document.body.append(link);
   link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function download(name, type, content) {
+  downloadBlob(name, new Blob([content], { type }));
 }
 
 function exportCss() {
@@ -201,6 +227,125 @@ function svg() {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(bounds.width)}" height="${Math.ceil(bounds.height)}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>${exportCss()}</style>${card.outerHTML}</div></foreignObject></svg>`;
 }
 
+async function pngBlob() {
+  const card = $("chart").firstElementChild;
+  const sourceHeight = Math.min(
+    16384,
+    Math.max(2400, Math.ceil(card.getBoundingClientRect().height) + 400),
+  );
+  const graphic = `<svg xmlns="http://www.w3.org/2000/svg" width="${PNG_SOURCE_WIDTH}" height="${sourceHeight}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${PNG_CARD_WIDTH}px;margin:20px"><style>${exportCss()}</style>${card.outerHTML}</div></foreignObject></svg>`;
+  const image = new Image();
+  // A blob URL gives an SVG containing foreignObject an opaque origin in
+  // Chromium, which taints the canvas and blocks PNG export. A self-contained
+  // data URL keeps the render exportable without sending the chart anywhere.
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(graphic)}`;
+  await image.decode();
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = image.naturalWidth;
+  sourceCanvas.height = image.naturalHeight;
+  const sourceContext = sourceCanvas.getContext("2d", {
+    willReadFrequently: true,
+  });
+  if (!sourceContext)
+    throw new Error("This browser cannot create an image canvas.");
+  sourceContext.drawImage(image, 0, 0);
+  const pixels = sourceContext.getImageData(
+    0,
+    0,
+    sourceCanvas.width,
+    sourceCanvas.height,
+  ).data;
+  let lastOpaqueRow = 0;
+  for (let index = pixels.length - 1; index >= 3; index -= 4) {
+    if (pixels[index] !== 0) {
+      lastOpaqueRow = Math.floor(index / 4 / sourceCanvas.width);
+      break;
+    }
+  }
+  const contentHeight = Math.max(1, lastOpaqueRow + 1);
+  const canvas = document.createElement("canvas");
+  canvas.width = PNG_SIZE;
+  canvas.height = PNG_SIZE;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("This browser cannot create an image canvas.");
+  context.fillStyle = "#f7f2e8";
+  context.fillRect(0, 0, PNG_SIZE, PNG_SIZE);
+  const scale = Math.min(
+    (PNG_SIZE - PNG_PADDING * 2) / sourceCanvas.width,
+    (PNG_SIZE - PNG_PADDING * 2) / contentHeight,
+  );
+  const width = sourceCanvas.width * scale;
+  const height = contentHeight * scale;
+  context.drawImage(
+    sourceCanvas,
+    0,
+    0,
+    sourceCanvas.width,
+    contentHeight,
+    (PNG_SIZE - width) / 2,
+    (PNG_SIZE - height) / 2,
+    width,
+    height,
+  );
+  return await new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) =>
+        blob
+          ? resolve(blob)
+          : reject(new Error("The corrected chart could not be encoded.")),
+      "image/png",
+    ),
+  );
+}
+
+function preparePngDownload() {
+  const generation = ++pngGeneration;
+  const link = $("downloadImage");
+  if (pngDownloadUrl) {
+    const staleUrl = pngDownloadUrl;
+    setTimeout(() => URL.revokeObjectURL(staleUrl), 1000);
+  }
+  pngDownloadUrl = null;
+  link.removeAttribute("href");
+  link.setAttribute("aria-disabled", "true");
+  link.textContent = "Preparing image…";
+  pngDownloadPromise = Promise.resolve()
+    .then(pngBlob)
+    .then((blob) => {
+      if (generation !== pngGeneration) return blob;
+      pngDownloadUrl = URL.createObjectURL(blob);
+      link.href = pngDownloadUrl;
+      link.removeAttribute("aria-disabled");
+      link.textContent = "Download image";
+      return blob;
+    })
+    .catch((error) => {
+      if (generation === pngGeneration) {
+        link.textContent = "Image unavailable";
+        status(`Could not prepare the image: ${error.message}`, true);
+      }
+      return null;
+    });
+}
+
+async function copyChartImage() {
+  const imagePromise = (pngDownloadPromise || pngBlob()).then((blob) => {
+    if (!blob) throw new Error("The PNG image is unavailable.");
+    return blob;
+  });
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+    return status("Image copying is not supported here. Use Download image.", true);
+  }
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({ "image/png": imagePromise }),
+    ]);
+    status("Corrected chart copied as a square PNG image.");
+  } catch {
+    status("Clipboard access was blocked. Use Download image instead.", true);
+  }
+}
+
 async function exportFile(kind) {
   if (kind === "json")
     return download(
@@ -217,18 +362,6 @@ async function exportFile(kind) {
   const graphic = svg();
   if (kind === "svg")
     return download("benchwarmer-chart.svg", "image/svg+xml", graphic);
-  const url = URL.createObjectURL(
-    new Blob([graphic], { type: "image/svg+xml" }),
-  );
-  const image = new Image();
-  image.src = url;
-  await image.decode();
-  const canvas = document.createElement("canvas");
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
-  canvas.getContext("2d").drawImage(image, 0, 0);
-  URL.revokeObjectURL(url);
-  canvas.toBlob((blob) => download("benchwarmer-chart.png", "image/png", blob));
 }
 
 function clearImage() {
@@ -346,8 +479,28 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
   document
     .querySelectorAll("[data-export]")
     .forEach((button) =>
-      button.addEventListener("click", () => exportFile(button.dataset.export)),
+      button.addEventListener("click", async () => {
+        try {
+          await exportFile(button.dataset.export);
+        } catch (error) {
+          status(`Could not export that file: ${error.message}`, true);
+        }
+      }),
     );
+  $("downloadImage").addEventListener("click", (event) => {
+    if (!event.currentTarget.href) {
+      event.preventDefault();
+      return status("The image is still being prepared. Try again in a moment.");
+    }
+    status("Corrected chart downloaded as a PNG image.");
+  });
+  $("copyImage").addEventListener("click", async () => {
+    try {
+      await copyChartImage();
+    } catch (error) {
+      status(`Could not copy that image: ${error.message}`, true);
+    }
+  });
   $("file").addEventListener("change", async (event) => {
     try {
       await importFile(event.target.files[0]);

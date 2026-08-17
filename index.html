@@ -136,7 +136,13 @@
           <div class="actions">
             <button id="update">Update chart</button
             ><button class="quiet" data-export="svg">SVG</button
-            ><button class="quiet" data-export="png">PNG</button
+            ><a
+              class="button quiet"
+              id="downloadImage"
+              download="benchwarmer-chart.png"
+              aria-disabled="true"
+              >Preparing image…</a
+            ><button class="quiet" id="copyImage">Copy image</button
             ><button class="quiet" data-export="html">HTML</button
             ><button class="quiet" data-export="json">Audit JSON</button>
           </div>
@@ -151,6 +157,7 @@
             <img id="sourceEvidenceImage" alt="Original benchmark source" />
             <p>The source styling is evidence of presentation—not of rank.</p>
           </article>
+          <aside class="crime-report" id="crimeReport" hidden></aside>
           <div id="chart" aria-live="polite"></div>
         </div>
         <p class="audit">
