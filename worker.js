@@ -57,8 +57,9 @@ export async function extractTable(request, env) {
     console.error("Gemini extraction failed", google.status, await google.text());
     return Response.json({ error: "Gemini could not extract this table. Try again later or edit locally.", code: "gemini_upstream", upstreamStatus: google.status }, { status: 502 });
   }
-  const table = generatedJson(await google.json());
-  if (!table) return Response.json({ error: "Gemini returned an unreadable table. Try again or edit locally.", code: "gemini_invalid_json" }, { status: 502 });
+  const payload = await google.json();
+  const table = generatedJson(payload);
+  if (!table) return Response.json({ error: "Gemini returned an unreadable table. Try again or edit locally.", code: "gemini_invalid_json", diagnostic: generatedJsonDiagnostic(payload) }, { status: 502 });
   return Response.json(table);
 }
 
@@ -73,6 +74,19 @@ export function generatedJson(payload) {
     } catch { /* Try later non-thought content parts. */ }
   }
   return null;
+}
+
+export function generatedJsonDiagnostic(payload) {
+  const candidates = payload?.candidates || [];
+  return {
+    candidateCount: candidates.length,
+    finishReasons: candidates.map((candidate) => candidate?.finishReason || "unknown"),
+    parts: candidates.flatMap((candidate) => (candidate?.content?.parts || []).map((part) => ({
+      thought: Boolean(part?.thought),
+      hasText: typeof part?.text === "string",
+      textLength: typeof part?.text === "string" ? part.text.length : 0,
+    }))),
+  };
 }
 
 async function fingerprint(value, salt) { const bytes = new TextEncoder().encode(`${salt}:${value}`); const digest = await crypto.subtle.digest("SHA-256", bytes); return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }

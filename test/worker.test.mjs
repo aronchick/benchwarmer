@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import worker, { browserSafeHeaders, extractTable, generatedJson } from "../worker.js";
+import worker, { browserSafeHeaders, extractTable, generatedJson, generatedJsonDiagnostic } from "../worker.js";
 
 const imageRequest = () =>
   new Request("https://benchwarm.ing/api/extract-table", {
@@ -67,6 +67,13 @@ test("reads JSON from a non-thought Gemini content part", () => {
 
 test("does not mistake a Gemini thought or malformed content for a table", () => {
   assert.equal(generatedJson({ candidates: [{ content: { parts: [{ thought: true, text: "{not JSON}" }, { text: "{not JSON}" }] } }] }), null);
+});
+
+test("reports only safe Gemini response metadata when JSON parsing fails", () => {
+  assert.deepEqual(
+    generatedJsonDiagnostic({ candidates: [{ finishReason: "MAX_TOKENS", content: { parts: [{ thought: true, text: "private reasoning" }, {}] } }] }),
+    { candidateCount: 1, finishReasons: ["MAX_TOKENS"], parts: [{ thought: true, hasText: true, textLength: 17 }, { thought: false, hasText: false, textLength: 0 }] },
+  );
 });
 
 test("reports an upstream Gemini status without exposing credentials", async (t) => {
