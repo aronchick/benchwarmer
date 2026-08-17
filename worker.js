@@ -1,6 +1,7 @@
 export const COOLDOWN_MS = 10_000;
 const DAILY_LIMIT = 20;
 const MONTHLY_LIMIT = 480;
+const LIMIT_EPOCH = 2;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 
 export class ExtractionGovernor {
@@ -10,8 +11,9 @@ export class ExtractionGovernor {
     const now = Date.now();
     const day = new Date(now).toISOString().slice(0, 10);
     const month = day.slice(0, 7);
-    const data = (await this.state.storage.get("limits")) || { month, used: 0, clients: {} };
+    const data = (await this.state.storage.get("limits")) || { month, used: 0, clients: {}, epoch: LIMIT_EPOCH };
     if (data.month !== month) { data.month = month; data.used = 0; data.clients = {}; }
+    if (data.epoch !== LIMIT_EPOCH) { data.epoch = LIMIT_EPOCH; data.clients = {}; }
     const entry = data.clients[client] || { day, count: 0, next: 0 };
     if (entry.day !== day) { entry.day = day; entry.count = 0; entry.next = 0; }
     if (now < entry.next)

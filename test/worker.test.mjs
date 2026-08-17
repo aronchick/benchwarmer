@@ -29,6 +29,16 @@ test("limits each visitor to one extraction every ten seconds", async (t) => {
   assert.equal((await reserve()).status, 200);
 });
 
+test("resets daily visitor counts without resetting the monthly budget when the limiter epoch changes", async () => {
+  const now = new Date().toISOString();
+  let limits = { month: now.slice(0, 7), used: 47, clients: { visitor: { day: now.slice(0, 10), count: 20, next: 0 } }, epoch: 1 };
+  const governor = new ExtractionGovernor({ storage: { get: async () => limits, put: async (_key, value) => { limits = value; } } });
+  const response = await governor.fetch(new Request("https://limits/reserve", { method: "POST", body: JSON.stringify({ client: "visitor" }) }));
+  assert.equal(response.status, 200);
+  assert.equal(limits.used, 48);
+  assert.equal(limits.clients.visitor.count, 1);
+});
+
 test("removes an upstream CSP that blocks the app's own assets", async () => {
   const upstream = new Response("<link rel=stylesheet href=styles.css>", {
     headers: {
