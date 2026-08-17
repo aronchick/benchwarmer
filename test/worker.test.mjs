@@ -16,6 +16,16 @@ test("removes an upstream CSP that blocks the app's own assets", async () => {
   assert.equal(response.headers.get("content-security-policy"), null);
   assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
+  assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+  assert.equal(
+    response.headers.get("strict-transport-security"),
+    "max-age=31536000",
+  );
+  assert.equal(
+    response.headers.get("permissions-policy"),
+    "geolocation=(), microphone=(), payment=(), usb=()",
+  );
 });
 
 test("preserves ordinary upstream headers", () => {

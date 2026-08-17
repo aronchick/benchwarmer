@@ -3,10 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
-const [html, app, css] = await Promise.all([
+const [html, app, css, readme, wrangler] = await Promise.all([
   readFile(new URL("index.html", root), "utf8"),
   readFile(new URL("app.js", root), "utf8"),
   readFile(new URL("styles.css", root), "utf8"),
+  readFile(new URL("README.md", root), "utf8"),
+  readFile(new URL("wrangler.jsonc", root), "utf8"),
 ]);
 
 test("offers explicit image download and clipboard actions", () => {
@@ -35,6 +37,12 @@ test("credits contributors and Expanso in the footer", () => {
     /href="https:\/\/github\.com\/aronchick\/benchwarmer\/graphs\/contributors"/,
   );
   assert.match(html, /Sponsored by <a href="https:\/\/expanso\.io">expanso\.io<\/a>/);
+});
+
+test("keeps benchwarm.ing canonical and credits the inspiration", () => {
+  assert.match(readme, /https:\/\/benchwarm\.ing/);
+  assert.match(readme, /https:\/\/x\.com\/matsonj/);
+  assert.doesNotMatch(`${readme}\n${wrangler}`, /bench\.bac\.al|workers\.dev/);
 });
 
 test("places the chart-crime report between source evidence and corrected chart", () => {
