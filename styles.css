@@ -9,6 +9,12 @@
 * {
   box-sizing: border-box;
 }
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
 body {
   margin: 0;
   background: var(--paper);
@@ -46,6 +52,7 @@ header p {
 }
 .intro,
 main {
+  width: 100%;
   max-width: 1300px;
   margin: auto;
 }
@@ -69,12 +76,14 @@ h1 {
   margin: 12px 0;
 }
 .workspace {
+  min-width: 0;
   border-block: 2px solid var(--line);
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;
 }
 .inputs,
 .editor {
+  min-width: 0;
   padding: 30px 5vw;
 }
 .inputs {
@@ -200,9 +209,11 @@ code {
   gap: 0 14px;
 }
 .output {
+  min-width: 0;
   padding: 5vw 2.5vw;
 }
 .comparison {
+  min-width: 0;
   display: grid;
   gap: 34px;
 }
@@ -259,6 +270,9 @@ code {
   color: #0f766e;
 }
 .chart-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background: white;
   border: 2px solid var(--line);
   padding: clamp(20px, 4vw, 52px);
@@ -541,5 +555,74 @@ footer {
   .source-evidence,
   .matrix-card {
     padding: 16px;
+  }
+  .matrix-scroll {
+    overflow: visible;
+    border: 0;
+  }
+  .matrix,
+  .matrix thead,
+  .matrix tbody,
+  .matrix tr,
+  .matrix th,
+  .matrix td {
+    display: block;
+    width: 100%;
+  }
+  .matrix {
+    min-width: 0;
+    table-layout: auto;
+  }
+  .matrix thead {
+    display: none;
+  }
+  .matrix .benchmark-row {
+    margin-bottom: 14px;
+    border: 1.5px solid var(--line);
+  }
+  .matrix .benchmark-row > th {
+    border-right: 0;
+    border-bottom: 1.5px solid var(--line);
+    overflow-wrap: anywhere;
+  }
+  .matrix td {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "model value"
+      "model rank";
+    min-height: 54px;
+    height: auto;
+    align-items: center;
+    gap: 2px 12px;
+    border-right: 0;
+    text-align: right;
+  }
+  .matrix td::before {
+    content: attr(data-column);
+    grid-area: model;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 750;
+  }
+  .matrix td .value {
+    grid-area: value;
+  }
+  .matrix td .rank-label {
+    grid-area: rank;
+  }
+  .matrix .group-row {
+    margin: 20px 0 8px;
+  }
+  .matrix .group-row:first-child {
+    margin-top: 0;
+  }
+  .matrix .group-row th {
+    border: 0;
+  }
+  .actions button {
+    flex: 1 1 auto;
   }
 }
