@@ -403,12 +403,45 @@ async function importFile(file, origin = "file") {
   throw new Error("Choose an image, CSV, or JSON file.");
 }
 
+async function ocrReadyImage(file) {
+  if (typeof createImageBitmap !== "function") return file;
+  const source = await createImageBitmap(file);
+  const scale = source.width < 1800 ? 2 : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = source.width * scale;
+  canvas.height = source.height * scale;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return file;
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  source.close?.();
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const red = pixels.data[index];
+    const green = pixels.data[index + 1];
+    const blue = pixels.data[index + 2];
+    // Selected columns often use pale blue fills. Flattening every light fill
+    // to white preserves the dark glyphs without allowing the fill to erase a
+    // whole model column during OCR.
+    const isInk = Math.min(red, green, blue) < 115;
+    const output = isInk ? 0 : 255;
+    pixels.data[index] = output;
+    pixels.data[index + 1] = output;
+    pixels.data[index + 2] = output;
+  }
+  context.putImageData(pixels, 0, 0);
+  return await new Promise((resolve) =>
+    canvas.toBlob((blob) => resolve(blob || file), "image/png"),
+  );
+}
+
 async function extractImage() {
   if (!imageFile)
     return status("Paste, drop, choose, or photograph an image first.", true);
   const button = $("extract");
   button.disabled = true;
   try {
+    status("Preparing the source for local OCR…");
+    const preparedImage = await ocrReadyImage(imageFile);
     status("Loading local OCR…");
     const { default: Tesseract } = await import(
       "https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.esm.min.js"
@@ -421,7 +454,7 @@ async function extractImage() {
     });
     let result;
     try {
-      result = await worker.recognize(imageFile, {}, { text: true, tsv: true });
+      result = await worker.recognize(preparedImage, {}, { text: true, tsv: true });
     } finally {
       await worker.terminate();
     }
