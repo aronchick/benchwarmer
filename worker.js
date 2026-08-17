@@ -51,15 +51,28 @@ export async function extractTable(request, env) {
   if (!permitted.ok) return permitted;
   const google = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" + encodeURIComponent(env.GEMINI_API_KEY), {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: "Extract this benchmark table. Return JSON only: {kind:'matrix',title,metric,columns:string[],rows:[{label,detail,higherIsBetter:true,values:(number|null)[]}]}. Preserve every visible model column and row. Use null for dashes. Do not infer missing values." }, { inlineData: { mimeType: request.headers.get("content-type") || "image/png", data: toBase64(image) } }] }], generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1500 } }),
+    body: JSON.stringify({ contents: [{ parts: [{ text: "Extract this benchmark table into one JSON object. Shape: {kind:'matrix',title,metric,columns:string[],rows:[{label,detail,higherIsBetter:true,values:(number|null)[]}]}. Preserve every visible model column and every visible data row. For a row with visible sub-metrics, emit a separate row for each sub-metric. Copy headers and labels exactly. Every row must have one value for each column. Use numbers without symbols and null for dashes. Do not infer missing values." }, { inlineData: { mimeType: request.headers.get("content-type") || "image/png", data: toBase64(image) } }] }], generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 4096 } }),
   });
   if (!google.ok) {
     console.error("Gemini extraction failed", google.status, await google.text());
     return Response.json({ error: "Gemini could not extract this table. Try again later or edit locally.", code: "gemini_upstream", upstreamStatus: google.status }, { status: 502 });
   }
-  const payload = await google.json();
-  try { return Response.json(JSON.parse(payload.candidates[0].content.parts[0].text)); }
-  catch { return Response.json({ error: "Gemini returned an unreadable table. Try again or edit locally.", code: "gemini_invalid_json" }, { status: 502 }); }
+  const table = generatedJson(await google.json());
+  if (!table) return Response.json({ error: "Gemini returned an unreadable table. Try again or edit locally.", code: "gemini_invalid_json" }, { status: 502 });
+  return Response.json(table);
+}
+
+export function generatedJson(payload) {
+  const parts = payload?.candidates?.flatMap((candidate) => candidate?.content?.parts || []) || [];
+  for (const part of parts) {
+    if (part?.thought || typeof part?.text !== "string") continue;
+    const text = part.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    try {
+      const result = JSON.parse(text);
+      if (result && typeof result === "object" && !Array.isArray(result)) return result;
+    } catch { /* Try later non-thought content parts. */ }
+  }
+  return null;
 }
 
 async function fingerprint(value, salt) { const bytes = new TextEncoder().encode(`${salt}:${value}`); const digest = await crypto.subtle.digest("SHA-256", bytes); return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }

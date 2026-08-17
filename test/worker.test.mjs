@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import worker, { browserSafeHeaders, extractTable } from "../worker.js";
+import worker, { browserSafeHeaders, extractTable, generatedJson } from "../worker.js";
 
 const imageRequest = () =>
   new Request("https://benchwarm.ing/api/extract-table", {
@@ -55,6 +55,18 @@ test("returns Gemini structured table output", async (t) => {
   globalThis.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] }) }] } }] });
   const response = await extractTable(imageRequest(), env({ fetch: async () => Response.json({ ok: true }) }));
   assert.deepEqual(await response.json(), { kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] });
+});
+
+test("reads JSON from a non-thought Gemini content part", () => {
+  const table = { kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] };
+  assert.deepEqual(
+    generatedJson({ candidates: [{ content: { parts: [{ thought: true, text: "I will inspect the table." }, { text: `\`\`\`json\n${JSON.stringify(table)}\n\`\`\`` }] } }] }),
+    table,
+  );
+});
+
+test("does not mistake a Gemini thought or malformed content for a table", () => {
+  assert.equal(generatedJson({ candidates: [{ content: { parts: [{ thought: true, text: "{not JSON}" }, { text: "{not JSON}" }] } }] }), null);
 });
 
 test("reports an upstream Gemini status without exposing credentials", async (t) => {

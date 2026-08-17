@@ -47,6 +47,21 @@ npm run dev
 
 Open the local address Wrangler prints. That is the entire ceremony.
 
+## Live AI extraction regression checks
+
+Two real source screenshots live in `test/fixtures/gemini/`: the Gemini 3.6
+comparison and the multi-model benchmark matrix. The normal test suite skips live
+model calls, so it remains free and deterministic. To exercise the deployed endpoint
+against both fixtures and verify its returned table structure, run:
+
+```sh
+npm run test:integration
+```
+
+This uses two extraction requests, so run it deliberately: it counts against the
+shared extraction budget and takes at least six seconds because it respects the
+three-second production cooldown.
+
 ## Screenshot workflow
 
 On desktop, paste an image from the clipboard or drag it onto the intake box. On
