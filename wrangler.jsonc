@@ -3,7 +3,7 @@
   "name": "benchwarmer",
   "main": "worker.js",
   "compatibility_date": "2026-08-14",
-  "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": false },
+  "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": true },
   "routes": [
     { "pattern": "benchwarm.ing", "custom_domain": true },
     { "pattern": "bench.bac.al", "custom_domain": true }
