@@ -12,7 +12,7 @@ const fixtures = [
   {
     file: "gemini-3.6-results-july-2026.png",
     columns: ["Gemini 3.6 Flash", "Gemini 3.5 Flash", "Gemini 3.1 Pro", "GPT-5.6 Luna", "Grok 4.5", "Claude Sonnet 5"],
-    rowLabels: ["Input price", "SWE-Bench Pro", "CharXiv Reasoning", "GDM-MRCR v2"],
+    rowLabels: ["Input price", "SWE-Bench Pro (Public)", "CharXiv Reasoning", "GDM-MRCR v2 (8-needle)"],
     minimumRows: 12,
   },
   {
