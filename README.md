@@ -21,7 +21,7 @@ Open the local URL that Wrangler prints. For production deployment, authenticate
 
 ## Release flow
 
-Pull requests run the same `npm run verify` gate available locally. Once a non-draft pull request has an approving review, Benchwarmer enables GitHub auto-merge; GitHub merges it only after the required `verify` check passes. The protected `main` branch is the production source, and Cloudflare publishes the merged revision automatically.
+Pull requests run the same `npm run verify` gate available locally. Non-draft pull requests opened from this repository by any owner or maintainer automatically queue for squash merge, with no review approval required; GitHub merges them as soon as the required `verify` check passes. The protected `main` branch is the production source, and Cloudflare publishes the merged revision automatically.
 
 ## Portable specification and CLI
 
