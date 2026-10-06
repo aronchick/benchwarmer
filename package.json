@@ -18,7 +18,7 @@
     "example:image": "node scripts/render-matrix-svg.mjs examples/chart-crime.json examples/chart-crime-corrected.svg"
   },
   "devDependencies": {
-    "wrangler": "4.123.0"
+    "wrangler": "4.147.0"
   },
   "engines": {
     "node": ">=20"
