@@ -105,6 +105,26 @@ function renderCrimeReport(audit) {
   return `<strong>Chart-crime report</strong><ul>${findings}</ul>`;
 }
 
+function displayedCell(value, missingReason, footnote) {
+  if (missingReason === "not_supported") return "*";
+
+  if (missingReason === "not_available") return "—";
+
+  if (footnote === "not_self_reported") return `${value ?? ""}**`;
+
+  return value ?? "—";
+}
+
+function cellAnnotation(missingReason, footnote) {
+  if (missingReason === "not_supported") return "NOT SUPPORTED";
+
+  if (missingReason === "not_available") return "NOT AVAILABLE";
+
+  if (footnote === "not_self_reported") return "NOT SELF-REPORTED";
+
+  return "";
+}
+
 function renderMatrix(next) {
   const audit = auditMatrix(next);
   let previousGroup = null;
@@ -123,6 +143,9 @@ function renderMatrix(next) {
         .map((value, index) => {
           const winner = rank.winners.includes(index);
           const runner = rank.runnersUp.includes(index);
+          const missingReason = row.missingReasons?.[index] || "";
+          const footnote = row.footnotes?.[index] || "";
+          const annotation = cellAnnotation(missingReason, footnote);
 
           const classes = [
             winner ? "winner" : "",
@@ -132,7 +155,20 @@ function renderMatrix(next) {
             .filter(Boolean)
             .join(" ");
 
-          return `<td class="${classes}" data-column="${escapeHtml(next.columns[index])}"><span class="value">${value ?? "—"}</span>${winner ? '<span class="rank-label">WINNER</span>' : runner ? '<span class="rank-label">2ND</span>' : value === null ? '<span class="rank-label">NO DATA</span>' : ""}</td>`;
+          const rankLabel = winner
+            ? "WINNER"
+            : runner
+              ? "2ND"
+              : value === null
+                ? annotation || "NO DATA"
+                : "";
+
+          const label =
+            annotation && value !== null
+              ? [rankLabel, annotation].filter(Boolean).join(" · ")
+              : rankLabel;
+
+          return `<td class="${classes}" data-column="${escapeHtml(next.columns[index])}"><span class="value">${escapeHtml(displayedCell(value, missingReason, footnote))}</span>${label ? `<span class="rank-label">${escapeHtml(label)}</span>` : ""}</td>`;
         })
         .join("");
 
@@ -483,7 +519,7 @@ async function extractImageWithAi() {
   } catch (error) {
     status(error.message, true);
   } finally {
-    button.textContent = "AI table extraction";
+    button.textContent = "Extract & rehabilitate with AI";
     button.disabled = false;
   }
 }
@@ -557,7 +593,6 @@ if (typeof document !== "undefined" && document.querySelectorAll) {
       status(error.message, true);
     }
   });
-  $("extract").addEventListener("click", extractImage);
   $("extractAi").addEventListener("click", extractImageWithAi);
   $("clearImage").addEventListener("click", () => {
     clearImage();

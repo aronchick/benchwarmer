@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import test from "node:test";
+import { normalize, rankRow } from "../lib/benchmark.mjs";
 
 const enabled = process.env.RUN_LIVE_INTEGRATION === "1";
+
 const endpoint = process.env.BENCHWARMER_LIVE_URL || "https://benchwarm.ing";
+
 const fixtureDirectory = new URL("./fixtures/gemini/", import.meta.url);
+
 const cooldownMs = 10_100;
 
 const fixtures = [
@@ -21,6 +25,13 @@ const fixtures = [
     rowLabels: ["Agentic terminal coding", "Repo-level code generation", "Scientific reasoning", "Competitive coding"],
     minimumRows: 12,
   },
+  {
+    file: "embeddinggemma2-bench.png",
+    columns: ["EmbeddingGemma 2", "EmbeddingGemma", "Jina v5 Omni-Nano", "Qwen3-Embedding-0.6B", "SigLIP-SO400M", "larger-clap-general"],
+    rowLabels: ["MTEB (Multilingual, v2)", "MIEB (lite)", "MMEB (v2) - VisDoc", "MSEB (Retrieval)", "MAEB"],
+    minimumRows: 9,
+    expected: "embeddinggemma2-bench.expected.json",
+  },
 ];
 
 function readableBody(body) {
@@ -33,15 +44,18 @@ for (const fixture of fixtures) {
     // Keep these regression calls serial and polite even when the test runner changes.
     await new Promise((resolve) => setTimeout(resolve, cooldownMs));
     const image = await readFile(join(fixtureDirectory.pathname, fixture.file));
+
     const response = await fetch(`${endpoint}/api/extract-table`, {
       method: "POST",
       headers: { "content-type": "image/png" },
       body: image,
     });
+
     const body = await response.text();
     assert.equal(response.status, 200, `Expected HTTP 200 from ${endpoint}; received ${response.status}: ${readableBody(body)}`);
 
     let table;
+
     try {
       table = JSON.parse(body);
     } catch {
@@ -53,7 +67,24 @@ for (const fixture of fixtures) {
     assert.ok(Array.isArray(table.rows), "Response must contain rows");
     assert.ok(table.rows.length >= fixture.minimumRows, `Expected at least ${fixture.minimumRows} rows; received ${table.rows.length}`);
     const labels = table.rows.map((row) => row.label);
+
     for (const label of fixture.rowLabels) assert.ok(labels.includes(label), `Missing row: ${label}`);
+
     for (const row of table.rows) assert.equal(row.values.length, fixture.columns.length, `Wrong value count for ${row.label}`);
+
+    if (fixture.expected) {
+      const expected = JSON.parse(
+        await readFile(join(fixtureDirectory.pathname, fixture.expected), "utf8"),
+      );
+
+      const normalized = normalize(table);
+
+      assert.deepEqual(normalized.columns, expected.columns);
+      assert.deepEqual(normalized.rows, expected.rows);
+      assert.deepEqual(
+        normalized.rows.map((row) => rankRow(row).winners),
+        [[2], [2], [0], [0], [0], [2], [0], [0], [2]],
+      );
+    }
   });
 }

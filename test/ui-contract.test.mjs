@@ -3,12 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
-const [html, app, css, readme, wrangler] = await Promise.all([
+
+const [html, app, css, readme, wrangler, benchmark] = await Promise.all([
   readFile(new URL("index.html", root), "utf8"),
   readFile(new URL("app.js", root), "utf8"),
   readFile(new URL("styles.css", root), "utf8"),
   readFile(new URL("README.md", root), "utf8"),
   readFile(new URL("wrangler.jsonc", root), "utf8"),
+  readFile(new URL("lib/benchmark.mjs", root), "utf8"),
 ]);
 
 test("offers explicit image download and clipboard actions", () => {
@@ -36,6 +38,16 @@ test("uses a stacked mobile matrix without page-level horizontal overflow", () =
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.matrix \{[\s\S]*?min-width: 0/);
   assert.match(css, /\.matrix td::before \{[\s\S]*?content: attr\(data-column\)/);
   assert.match(app, /data-column="\$\{escapeHtml\(next\.columns\[index\]\)\}"/);
+});
+
+test("renders source markers separately from numeric row ranking", () => {
+  assert.match(app, /missingReason === "not_supported"[\s\S]*return "\*"/);
+  assert.match(app, /missingReason === "not_available"[\s\S]*return "—"/);
+  assert.match(app, /footnote === "not_self_reported"[\s\S]*\*\*`/);
+  assert.match(app, /NOT SELF-REPORTED/);
+  assert.match(benchmark, /marked not supported \(\*\)/);
+  assert.match(benchmark, /marked not available \(—\)/);
+  assert.match(benchmark, /not-self-reported footnote \(\*\*\)/);
 });
 
 test("credits contributors and Expanso in the footer", () => {

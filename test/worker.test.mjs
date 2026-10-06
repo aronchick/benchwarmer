@@ -8,6 +8,7 @@ const imageRequest = () =>
     headers: { "content-type": "image/png", "CF-Connecting-IP": "203.0.113.1" },
     body: new Uint8Array([137, 80, 78, 71]),
   });
+
 const env = (governor) => ({
   GEMINI_API_KEY: "test-key",
   EXTRACTION_RATE_LIMIT_SALT: "test-salt",
@@ -39,6 +40,26 @@ test("resets daily visitor counts without resetting the monthly budget when the 
   assert.equal(limits.clients.visitor.count, 1);
 });
 
+test("enforces the daily visitor and global monthly extraction caps", async (t) => {
+  const originalNow = Date.now;
+  t.after(() => { Date.now = originalNow; });
+  let now = 0;
+  Date.now = () => now;
+  let limits;
+  const governor = new ExtractionGovernor({ storage: { get: async () => limits, put: async (_key, value) => { limits = value; } } });
+  const reserve = (client) => governor.fetch(new Request("https://limits/reserve", { method: "POST", body: JSON.stringify({ client }) }));
+
+  for (let count = 0; count < 20; count += 1) {
+    assert.equal((await reserve("daily-visitor")).status, 200);
+    now += COOLDOWN_MS;
+  }
+
+  assert.equal((await reserve("daily-visitor")).status, 429);
+
+  limits.used = 480;
+  assert.equal((await reserve("new-visitor")).status, 429);
+});
+
 test("removes an upstream CSP that blocks the app's own assets", async () => {
   const upstream = new Response("<link rel=stylesheet href=styles.css>", {
     headers: {
@@ -46,6 +67,7 @@ test("removes an upstream CSP that blocks the app's own assets", async () => {
       "content-type": "text/html; charset=utf-8",
     },
   });
+
   const env = { ASSETS: { fetch: async () => upstream } };
 
   const response = await worker.fetch(new Request("https://benchwarm.ing"), env);
@@ -78,13 +100,21 @@ test("returns Gemini structured table output", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   let generationConfig;
+  let prompt;
   globalThis.fetch = async (_url, request) => {
-    generationConfig = JSON.parse(request.body).generationConfig;
+    const body = JSON.parse(request.body);
+    generationConfig = body.generationConfig;
+    prompt = body.contents[0].parts[0].text;
+
     return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] }) }] } }] });
   };
+
   const response = await extractTable(imageRequest(), env({ fetch: async () => Response.json({ ok: true }) }));
   assert.deepEqual(await response.json(), { kind: "matrix", columns: ["A", "B"], rows: [{ label: "Quality", values: [72, 81] }] });
   assert.deepEqual(generationConfig, { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 4096, thinkingConfig: { thinkingLevel: "MINIMAL" } });
+  assert.match(prompt, /missingReasons.*not_supported.*not_available/);
+  assert.match(prompt, /footnotes.*not_self_reported/);
+  assert.match(prompt, /Ignore bold, shading, and source emphasis/);
 });
 
 test("reads JSON from a non-thought Gemini content part", () => {

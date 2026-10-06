@@ -49,8 +49,9 @@ Open the local address Wrangler prints. That is the entire ceremony.
 
 ## Live AI extraction regression checks
 
-Two real source screenshots live in `test/fixtures/gemini/`: the Gemini 3.6
-comparison and the multi-model benchmark matrix. The normal test suite skips live
+Three real source screenshots live in `test/fixtures/gemini/`: the Gemini 3.6
+comparison, the multi-model benchmark matrix, and the EmbeddingGemma 2 table.
+The normal test suite skips live
 model calls, so it remains free and deterministic. To exercise the deployed endpoint
 against both fixtures and verify its returned table structure, run:
 
