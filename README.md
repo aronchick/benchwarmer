@@ -114,7 +114,9 @@ conditions, directionality, and material caveats whenever you publish the result
 
 Pull requests run `npm run verify`. Changes from a repository owner or maintainer
 automatically squash-merge after that check passes, with no review-approval ceremony.
-The protected `main` branch deploys automatically to Cloudflare.
+After a PR merges to `main`, deploy to Cloudflare with `npx wrangler deploy` from
+an up-to-date main checkout. The GEMINI_API_KEY Worker secret is set separately with
+`wrangler secret put GEMINI_API_KEY` and never committed.
 
 ## Credit
 
