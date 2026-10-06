@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   auditMatrix,
-  matrixFromTsv,
   normalize,
   parseTable,
   rankRow,
+  toEditableTable,
 } from "../lib/benchmark.mjs";
 import { fileKind } from "../app.js";
 
@@ -14,6 +14,7 @@ test("parses a Markdown benchmark series", () => {
   const spec = parseTable(
     "| Model | Score |\n|---|---:|\n| A | 91.2 |\n| B | 88.1 |",
   );
+
   assert.equal(spec.kind, "series");
   assert.equal(spec.series[0].value, 91.2);
 });
@@ -22,6 +23,7 @@ test("parses a multi-model CSV as a matrix", () => {
   const spec = parseTable(
     "Benchmark,Direction,Model A,Model B,Model C\nAccuracy,higher,91.2,88.1,93.4\nLatency,lower,120,95,101",
   );
+
   assert.equal(spec.kind, "matrix");
   assert.deepEqual(spec.columns, ["Model A", "Model B", "Model C"]);
   assert.deepEqual(rankRow(spec.rows[0]).winners, [2]);
@@ -32,14 +34,77 @@ test("treats missing values as unavailable rather than zero", () => {
   const spec = parseTable(
     "Benchmark,Model A,Model B\nQuality,72,--\nSafety,68,81",
   );
+
   assert.equal(spec.rows[0].values[1], null);
+  assert.equal(spec.rows[0].missingReasons[1], "not_available");
   assert.deepEqual(rankRow(spec.rows[0]).winners, [0]);
+});
+
+test("normalizes EmbeddingGemma markers, groups, and row winners", async () => {
+  const expected = JSON.parse(
+    await readFile(
+      new URL(
+        "./fixtures/gemini/embeddinggemma2-bench.expected.json",
+        import.meta.url,
+      ),
+    ),
+  );
+
+  const candidate = {
+    ...expected,
+    rows: expected.rows.map((expectedRow) => {
+      const { missingReasons, footnotes, ...row } = expectedRow;
+
+      return {
+        ...row,
+        values: expectedRow.values.map((value, index) => {
+          if (missingReasons[index] === "not_supported") return "*";
+
+          if (missingReasons[index] === "not_available") return "—";
+
+          if (footnotes[index] === "not_self_reported") return `${value}**`;
+
+          return value;
+        }),
+      };
+    }),
+  };
+
+  const normalized = normalize(candidate);
+
+  assert.deepEqual(normalized, expected);
+  assert.deepEqual(
+    normalized.rows.map((row) => rankRow(row).winners),
+    [[2], [2], [0], [0], [0], [2], [0], [0], [2]],
+  );
+
+  const audit = auditMatrix(normalized);
+
+  assert.deepEqual(audit.wins, [5, 0, 4, 0, 0, 0]);
+  assert.equal(audit.highlightMisses, 4);
+  assert.equal(audit.missing, 30);
+  assert.deepEqual(audit.missingReasons, {
+    notSupported: 24,
+    notAvailable: 6,
+    unclassified: 0,
+  });
+  assert.deepEqual(audit.footnotes, { notSelfReported: 3 });
+  assert.match(
+    audit.findings.map(({ text }) => text).join(" "),
+    /not supported \(\*\).*not available \(—\).*not-self-reported/s,
+  );
+
+  const editable = toEditableTable(normalized);
+  assert.match(editable, /31\.6\*\*/);
+  assert.match(editable, /,\*,/);
+  assert.match(editable, /,—,/);
 });
 
 test("detects the supplied chart's misleading column emphasis", async () => {
   const fixture = JSON.parse(
     await readFile(new URL("../examples/chart-crime.json", import.meta.url)),
   );
+
   const audit = auditMatrix(fixture);
   assert.equal(audit.highlightMisses, 4);
   assert.deepEqual(audit.wins, [9, 0, 0, 0, 4]);
@@ -49,63 +114,6 @@ test("detects the supplied chart's misleading column emphasis", async () => {
   );
 });
 
-test("infers a simple comparison matrix from positional OCR TSV", () => {
-  const header =
-    "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext";
-  const word = (line, wordNumber, left, top, width, text) =>
-    `5\t1\t1\t1\t${line}\t${wordNumber}\t${left}\t${top}\t${width}\t20\t95\t${text}`;
-  const tsv = [
-    header,
-    word(1, 1, 90, 10, 40, "ModelA"),
-    word(1, 2, 190, 10, 40, "ModelB"),
-    word(2, 1, 10, 50, 50, "Quality"),
-    word(2, 2, 95, 50, 30, "72.0"),
-    word(2, 3, 195, 50, 30, "81.0"),
-    word(3, 1, 10, 90, 50, "Safety"),
-    word(3, 2, 95, 90, 30, "90.0"),
-    word(3, 3, 195, 90, 30, "88.0"),
-  ].join("\n");
-  const spec = matrixFromTsv(tsv);
-  assert.deepEqual(spec.columns, ["ModelA", "ModelB"]);
-  assert.equal(spec.rows[0].label, "Quality");
-  assert.deepEqual(spec.rows[0].values, [72, 81]);
-});
-
-test("does not turn a screenshot subtitle into model columns", () => {
-  const header =
-    "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext";
-  const word = (line, wordNumber, left, top, width, text) =>
-    `5\t1\t1\t1\t${line}\t${wordNumber}\t${left}\t${top}\t${width}\t20\t95\t${text}`;
-  const rows = [
-    header,
-    word(1, 1, 10, 10, 60, "Results"),
-    word(1, 2, 80, 10, 30, "as"),
-    word(1, 3, 120, 10, 30, "of"),
-  ];
-  const columns = [300, 450, 600, 750, 900, 1050];
-  ["Gemini", "Gemini", "Gemini", "GPT-5.6", "Grok", "Claude"].forEach((name, index) =>
-    rows.push(word(2, index + 1, columns[index], 160, 60, name)),
-  );
-  [
-    ["SWE-Bench", [58.7, 55.1, 54.2, 62.7, 64.7, 63.2]],
-    ["Terminal-bench", [78, 76.2, 73.8, 84.7, 83.3, 80.4]],
-    ["MLE-Bench", [63.9, 49.7, 42.6, 47.6, 43.2, 66.9]],
-  ].forEach(([label, values], rowIndex) => {
-    const top = 240 + rowIndex * 50;
-    rows.push(word(3 + rowIndex, 1, 20, top, 120, label));
-    values.forEach((value, index) =>
-      rows.push(
-        word(3 + rowIndex, index + 2, columns[index], top, 45, String(value)),
-      ),
-    );
-  });
-  const spec = matrixFromTsv(rows.join("\n"));
-  assert.equal(spec.columns.length, 6);
-  assert.doesNotMatch(spec.columns.join(" "), /Results as of/);
-  assert.equal(spec.rows.length, 3);
-  assert.equal(spec.rows[1].label, "Terminal-bench");
-  assert.deepEqual(spec.rows[1].values, [78, 76.2, 73.8, 84.7, 83.3, 80.4]);
-});
 
 test("rejects empty specifications", () =>
   assert.throws(() => normalize({ title: "x", metric: "y", series: [] })));

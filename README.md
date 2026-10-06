@@ -47,12 +47,28 @@ npm run dev
 
 Open the local address Wrangler prints. That is the entire ceremony.
 
+## Live AI extraction regression checks
+
+Three real source screenshots live in `test/fixtures/gemini/`: the Gemini 3.6
+comparison, the multi-model benchmark matrix, and the EmbeddingGemma 2 table.
+The normal test suite skips live
+model calls, so it remains free and deterministic. To exercise the deployed endpoint
+against both fixtures and verify its returned table structure, run:
+
+```sh
+npm run test:integration
+```
+
+This uses two extraction requests, so run it deliberately: it counts against the
+shared extraction budget and takes at least twenty seconds because it respects the
+ten-second production cooldown.
+
 ## Screenshot workflow
 
 On desktop, paste an image from the clipboard or drag it onto the intake box. On
 mobile, paste where supported, choose an image from the photo library, or take a photo.
-Press **Extract & rehabilitate**, then check every extracted value against the source.
-OCR is a draft, not evidence. It is confident in the way only software can be.
+Press **Extract & rehabilitate with AI**, then check every extracted value against the source.
+The extraction is a draft, not evidence. It is confident in the way only software can be.
 
 For agent-assisted extraction, use [skills/benchwarmer/SKILL.md](skills/benchwarmer/SKILL.md).
 
@@ -82,8 +98,8 @@ node bin/benchwarmer.mjs examples/chart-crime.json --out chart.html
   uploaded to Benchwarmer.
 - There are no accounts, cookies, or third-party product analytics.
 - Cloudflare serves the static app and records ordinary request-level service metrics.
-- Image OCR uses the pinned Tesseract.js 7.0.0 browser build. The OCR library and
-  English language data download on first use; the image stays in the browser.
+- AI table extraction sends only the selected image to Google Gemini. It is rate-limited
+  and budget-capped; image extraction is not available without that explicit request.
 - Dependencies are locked, CI actions are pinned to immutable revisions, GitHub secret
   scanning and push protection are enabled, and dependency security updates are on.
 

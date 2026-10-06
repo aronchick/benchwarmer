@@ -1,0 +1,102 @@
+{
+  "kind": "matrix",
+  "title": "EmbeddingGemma 2 benchmark",
+  "metric": "Score",
+  "unit": "",
+  "higherIsBetter": true,
+  "source": "",
+  "caveat": "",
+  "interpretation": "",
+  "sourceHighlight": "EmbeddingGemma 2",
+  "columns": [
+    "EmbeddingGemma 2",
+    "EmbeddingGemma",
+    "Jina v5 Omni-Nano",
+    "Qwen3-Embedding-0.6B",
+    "SigLIP-SO400M",
+    "larger-clap-general"
+  ],
+  "rows": [
+    {
+      "label": "MTEB (Multilingual, v2)",
+      "detail": "",
+      "group": "Text",
+      "higherIsBetter": true,
+      "values": [61.4, 61.2, 65.5, 64.3, null, null],
+      "missingReasons": [null, null, null, null, "not_supported", "not_supported"],
+      "footnotes": [null, null, null, null, null, null]
+    },
+    {
+      "label": "MTEB (English, v2)",
+      "detail": "",
+      "group": "Text",
+      "higherIsBetter": true,
+      "values": [68.5, 69.7, 71.1, 70.7, null, null],
+      "missingReasons": [null, null, null, null, "not_supported", "not_supported"],
+      "footnotes": [null, null, null, null, null, null]
+    },
+    {
+      "label": "MTEB (Code, v1)",
+      "detail": "",
+      "group": "Text",
+      "higherIsBetter": true,
+      "values": [78.7, 68.8, null, 75.4, null, null],
+      "missingReasons": [null, null, "not_available", null, "not_supported", "not_supported"],
+      "footnotes": [null, null, null, null, null, null]
+    },
+    {
+      "label": "MIEB (lite)",
+      "detail": "",
+      "group": "Vision",
+      "higherIsBetter": true,
+      "values": [64.6, null, 49.4, null, 53.5, null],
+      "missingReasons": [null, "not_supported", null, "not_supported", null, "not_supported"],
+      "footnotes": [null, null, null, null, null, null]
+    },
+    {
+      "label": "MMEB (v2) - Image",
+      "detail": "",
+      "group": "Vision",
+      "higherIsBetter": true,
+      "values": [57.3, null, 31.6, null, null, null],
+      "missingReasons": [null, "not_supported", null, "not_supported", "not_available", "not_supported"],
+      "footnotes": [null, null, "not_self_reported", null, null, null]
+    },
+    {
+      "label": "MMEB (v2) - VisDoc",
+      "detail": "",
+      "group": "Vision",
+      "higherIsBetter": true,
+      "values": [67.8, null, 71.4, null, null, null],
+      "missingReasons": [null, "not_supported", null, "not_supported", "not_available", "not_supported"],
+      "footnotes": [null, null, "not_self_reported", null, null, null]
+    },
+    {
+      "label": "MMEB (v2) - Video",
+      "detail": "",
+      "group": "Vision",
+      "higherIsBetter": true,
+      "values": [50.7, null, 31.2, null, null, null],
+      "missingReasons": [null, "not_supported", null, "not_supported", "not_available", "not_supported"],
+      "footnotes": [null, null, "not_self_reported", null, null, null]
+    },
+    {
+      "label": "MSEB (Retrieval)",
+      "detail": "",
+      "group": "Audio",
+      "higherIsBetter": true,
+      "values": [69.5, null, null, null, null, null],
+      "missingReasons": [null, "not_supported", "not_available", "not_supported", "not_supported", "not_available"],
+      "footnotes": [null, null, null, null, null, null]
+    },
+    {
+      "label": "MAEB",
+      "detail": "",
+      "group": "Audio",
+      "higherIsBetter": true,
+      "values": [49.4, null, 50.1, null, null, 35],
+      "missingReasons": [null, "not_supported", null, "not_supported", "not_supported", null],
+      "footnotes": [null, null, null, null, null, null]
+    }
+  ]
+}

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "node --test",
+    "test:integration": "RUN_LIVE_INTEGRATION=1 node --test --test-concurrency=1 test/live-extraction.test.mjs",
     "check": "node --check app.js && node --check lib/benchmark.mjs && node --check bin/benchwarmer.mjs && node --check worker.js",
     "verify": "npm run check && npm test && npm run deploy:dry",
     "dev": "wrangler dev",
